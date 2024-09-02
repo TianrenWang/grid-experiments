@@ -2,7 +2,6 @@ import numpy as np
 import torch.nn.functional as F
 import random
 import torch
-from tqdm.notebook import trange
 
 from mcts import MCTSParallel
 
@@ -39,7 +38,7 @@ class AlphaZeroParallel:
 
                 temperature_action_probs = action_probs ** (
                     1 / self.args['temperature'])
-                # Divide temperature_action_probs with its sum in case of an error
+                temperature_action_probs /= temperature_action_probs.sum()
                 action = np.random.choice(
                     self.game.action_size, p=temperature_action_probs)
 
@@ -96,11 +95,14 @@ class AlphaZeroParallel:
             memory = []
 
             self.model.eval()
-            for selfPlay_iteration in trange(self.args['num_selfPlay_iterations'] // self.args['num_parallel_games']):
+            for selfPlay_iteration in range(self.args['num_selfPlay_iterations'] // self.args['num_parallel_games']):
+                print("CURRENT SELF-PLAY ITERATION OUT OF 5:", selfPlay_iteration)
                 memory += self.selfPlay()
 
             self.model.train()
-            for epoch in trange(self.args['num_epochs']):
+            for epoch in range(self.args['num_epochs']):
+                print(
+                    f"CURRENT EPOCH OUT OF {self.args['num_epochs']}:", epoch)
                 self.train(memory)
 
             torch.save(self.model.state_dict(),

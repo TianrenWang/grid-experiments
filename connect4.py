@@ -1,3 +1,6 @@
+import numpy as np
+
+
 class ConnectFour:
     def __init__(self):
         self.row_count = 6
