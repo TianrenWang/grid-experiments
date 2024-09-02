@@ -3,16 +3,11 @@ import torch
 from connect4 import ConnectFour
 from model import ResNet
 from alphazero import AlphaZeroParallel
+from device import getTorchDevice
 
 if __name__ == "__main__":
     game = ConnectFour()
-    deviceName = "cpu"
-    if torch.cuda.is_available():
-        deviceName = "cuda"
-    elif torch.mps.device_count() > 0:
-        deviceName = "mps"
-    device = torch.device(deviceName)
-    model = ResNet(game, 9, 128, device)
+    model = ResNet(game, 9, 128, getTorchDevice())
     optimizer = torch.optim.Adam(
         model.parameters(), lr=0.001, weight_decay=0.0001)
     args = {

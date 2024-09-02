@@ -92,11 +92,15 @@ class AlphaZeroParallel:
 
     def learn(self):
         for iteration in range(self.args['num_iterations']):
+            print(
+                f"CURRENT ITERATION OUT OF {self.args['num_iterations']}:", iteration)
             memory = []
 
             self.model.eval()
-            for selfPlay_iteration in range(self.args['num_selfPlay_iterations'] // self.args['num_parallel_games']):
-                print("CURRENT SELF-PLAY ITERATION OUT OF 5:", selfPlay_iteration)
+            parallelIterations = self.args['num_selfPlay_iterations'] // self.args['num_parallel_games']
+            for selfPlay_iteration in range(parallelIterations):
+                print(
+                    f"CURRENT SELF-PLAY ITERATION OUT OF {parallelIterations}:", selfPlay_iteration)
                 memory += self.selfPlay()
 
             self.model.train()
