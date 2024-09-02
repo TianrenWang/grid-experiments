@@ -2,6 +2,7 @@ import numpy as np
 import torch.nn.functional as F
 import random
 import torch
+from datetime import datetime
 
 from mcts import MCTSParallel
 
@@ -92,27 +93,31 @@ class AlphaZeroParallel:
 
     def learn(self):
         for iteration in range(self.args['num_iterations']):
+            print(datetime.now())
             print(
                 f"CURRENT ITERATION OUT OF {self.args['num_iterations']}:", iteration)
             memory = []
 
             self.model.eval()
             parallelIterations = self.args['num_selfPlay_iterations'] // self.args['num_parallel_games']
+
+            print(datetime.now())
             for selfPlay_iteration in range(parallelIterations):
                 print(
                     f"CURRENT SELF-PLAY ITERATION OUT OF {parallelIterations}:", selfPlay_iteration)
                 memory += self.selfPlay()
 
             self.model.train()
+            print(datetime.now())
             for epoch in range(self.args['num_epochs']):
                 print(
                     f"CURRENT EPOCH OUT OF {self.args['num_epochs']}:", epoch)
                 self.train(memory)
 
             torch.save(self.model.state_dict(),
-                       f"model_{iteration}_{self.game}.pt")
+                       f"results/model_{iteration}_{self.game}.pt")
             torch.save(self.optimizer.state_dict(),
-                       f"optimizer_{iteration}_{self.game}.pt")
+                       f"results/optimizer_{iteration}_{self.game}.pt")
 
 
 class SPG:
