@@ -3,8 +3,10 @@ import torch.nn.functional as F
 import random
 import torch
 from datetime import datetime
+import os
 
 from mcts import MCTSParallel
+from self_eval import testAgentVSAgent
 
 
 class AlphaZeroParallel:
@@ -81,7 +83,7 @@ class AlphaZeroParallel:
             value_targets = torch.tensor(
                 value_targets, dtype=torch.float32, device=self.model.device)
 
-            out_policy, out_value = self.model(state)
+            out_policy, out_value, _ = self.model(state)
 
             policy_loss = F.cross_entropy(out_policy, policy_targets)
             value_loss = F.mse_loss(out_value, value_targets)
@@ -92,7 +94,10 @@ class AlphaZeroParallel:
             self.optimizer.step()
 
     def learn(self):
-        for iteration in range(self.args['num_iterations']):
+        startingPoint = 0
+        if "prev_version" in self.args and self.args["prev_version"]:
+            startingPoint = self.args["prev_version"] + 1
+        for iteration in range(startingPoint, self.args['num_iterations']):
             print(datetime.now())
             print(
                 f"CURRENT ITERATION OUT OF {self.args['num_iterations']}:", iteration)
@@ -114,10 +119,14 @@ class AlphaZeroParallel:
                     f"CURRENT EPOCH OUT OF {self.args['num_epochs']}:", epoch)
                 self.train(memory)
 
-            torch.save(self.model.state_dict(),
-                       f"results/model_{iteration}_{self.game}.pt")
+            folderPath = f"results/version_{iteration}"
+            if not os.path.exists(folderPath):
+                os.mkdir(folderPath)
+            torch.save(self.model.state_dict(), folderPath + "/model.pt")
             torch.save(self.optimizer.state_dict(),
-                       f"results/optimizer_{iteration}_{self.game}.pt")
+                       folderPath + "/optimizer.pt")
+
+            testAgentVSAgent(iteration, iteration - 1)
 
 
 class SPG:

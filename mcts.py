@@ -113,11 +113,14 @@ class MCTS:
 
             node.backpropagate(value)
 
-        action_probs = np.zeros(self.game.action_size)
-        for child in root.children:
-            action_probs[child.action_taken] = child.visit_count
-        action_probs /= np.sum(action_probs)
-        return action_probs, latentState
+        if self.args['num_searches'] > 0:
+            action_probs = np.zeros(self.game.action_size)
+            for child in root.children:
+                action_probs[child.action_taken] = child.visit_count
+            action_probs /= np.sum(action_probs)
+            return action_probs, latentState
+        else:
+            return policy, latentState
 
 
 class MCTSParallel:
