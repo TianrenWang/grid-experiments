@@ -51,7 +51,7 @@ if __name__ == "__main__":
 
         else:
             neutral_state = game.change_perspective(state, player)
-            mcts_probs = mcts.search(neutral_state)
+            mcts_probs, _ = mcts.search(neutral_state)
             action = np.argmax(mcts_probs)
 
         state = game.get_next_state(state, action, player)

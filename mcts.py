@@ -74,7 +74,7 @@ class MCTS:
     def search(self, state):
         root = Node(self.game, self.args, state, visit_count=1)
 
-        policy, _ = self.model(
+        policy, _, latentState = self.model(
             torch.tensor(self.game.get_encoded_state(state),
                          device=self.model.device).unsqueeze(0)
         )
@@ -98,7 +98,7 @@ class MCTS:
             value = self.game.get_opponent_value(value)
 
             if not is_terminal:
-                policy, value = self.model(
+                policy, value, _ = self.model(
                     torch.tensor(self.game.get_encoded_state(
                         node.state), device=self.model.device).unsqueeze(0)
                 )
@@ -117,7 +117,7 @@ class MCTS:
         for child in root.children:
             action_probs[child.action_taken] = child.visit_count
         action_probs /= np.sum(action_probs)
-        return action_probs
+        return action_probs, latentState
 
 
 class MCTSParallel:
@@ -128,7 +128,7 @@ class MCTSParallel:
 
     @torch.no_grad()
     def search(self, states, spGames):
-        policy, _ = self.model(
+        policy, _, _ = self.model(
             torch.tensor(self.game.get_encoded_state(
                 states), device=self.model.device)
         )
@@ -170,7 +170,7 @@ class MCTSParallel:
                 states = np.stack(
                     [spGames[mappingIdx].node.state for mappingIdx in expandable_spGames])
 
-                policy, value = self.model(
+                policy, value, _ = self.model(
                     torch.tensor(self.game.get_encoded_state(
                         states), device=self.model.device)
                 )

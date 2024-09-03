@@ -47,7 +47,7 @@ class ResNet(nn.Module):
             x = resBlock(x)
         policy = self.policyHead(x)
         value = self.valueHead(x)
-        return policy, value
+        return policy, value, x
 
 
 class ResBlock(nn.Module):
