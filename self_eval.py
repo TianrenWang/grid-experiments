@@ -40,7 +40,7 @@ if __name__ == "__main__":
     losses = 0
     numberOfGames = 0
 
-    while numberOfGames < 20:
+    while numberOfGames < 100:
         print("Starting game:", str(numberOfGames))
         print("Player 1 wins/losses:", str(wins), "/", str(losses))
         state = game.get_initial_state()
