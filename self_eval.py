@@ -18,7 +18,7 @@ if __name__ == "__main__":
 
     args = {
         'C': 2,
-        'num_searches': 600,
+        'num_searches': 2,
         'dirichlet_epsilon': 0.3,
         'dirichlet_alpha': 0.3
     }
