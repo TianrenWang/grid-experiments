@@ -27,13 +27,13 @@ def testAgentVSAgent(version1: int, version2: int):
     }
 
     model1 = ResNet(game, 9, 128, getTorchDevice())
-    if os.path.exists("result/" + modelPath1):
+    if os.path.exists("results/" + modelPath1):
         model1.load_state_dict(torch.load(
             f"results/{modelPath1}/model.pt", map_location=getTorchDevice(), weights_only=True))
     model1.eval()
 
     model2 = ResNet(game, 9, 128, getTorchDevice())
-    if os.path.exists("result/" + modelPath2):
+    if os.path.exists("results/" + modelPath2):
         model2.load_state_dict(torch.load(
             f"results/{modelPath2}/model.pt", map_location=getTorchDevice(), weights_only=True))
     model2.eval()
@@ -45,7 +45,7 @@ def testAgentVSAgent(version1: int, version2: int):
     losses = 0
     numberOfGames = 0
 
-    while numberOfGames < 100:
+    while numberOfGames < 400:
         state = game.get_initial_state()
         while True:
             if player == 1:
