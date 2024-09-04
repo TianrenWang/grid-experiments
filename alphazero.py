@@ -121,7 +121,7 @@ class AlphaZeroParallel:
 
             folderPath = f"results/version_{iteration}"
             if not os.path.exists(folderPath):
-                os.mkdir(folderPath)
+                os.makedirs(folderPath)
             torch.save(self.model.state_dict(), folderPath + "/model.pt")
             torch.save(self.optimizer.state_dict(),
                        folderPath + "/optimizer.pt")
