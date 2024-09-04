@@ -1,7 +1,9 @@
 import time
 import torch
+from device import getTorchDevice
 
-device = "mps"
+device = getTorchDevice()
+print(f"Device being used is:", device)
 
 torch.manual_seed(1234)
 TENSOR_A_CPU = torch.rand(5000, 5000)
@@ -22,4 +24,4 @@ print("CPU : --- %s seconds ---" % (time.time() - start_time))
 
 start_time = time.time()
 torch.matmul(TENSOR_A_MPS, TENSOR_B_MPS)
-print("MPS : --- %s seconds ---" % (time.time() - start_time))
+print("DEVICE : --- %s seconds ---" % (time.time() - start_time))
