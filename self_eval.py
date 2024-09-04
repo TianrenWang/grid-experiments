@@ -15,7 +15,6 @@ def getHumanReadableState(state):
 def testAgentVSAgent(version1: int, version2: int):
     print(f"Evaluating Version {version1} VS Version {version2}")
     game = ConnectFour()
-    player = 1
     modelPath1 = f"version_{version1}"
     modelPath2 = f"version_{version2}"
 
@@ -44,8 +43,13 @@ def testAgentVSAgent(version1: int, version2: int):
     wins = 0
     losses = 0
     numberOfGames = 0
+    numberOfGamesToPlay = 400
 
-    while numberOfGames < 400:
+    while numberOfGames < numberOfGamesToPlay:
+        if numberOfGames < numberOfGamesToPlay / 2:
+            player = 1
+        else:
+            player = -1
         state = game.get_initial_state()
         while True:
             if player == 1:
