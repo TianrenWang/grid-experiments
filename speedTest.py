@@ -5,13 +5,15 @@ from device import getTorchDevice
 device = getTorchDevice()
 print(f"Device being used is:", device)
 
-torch.manual_seed(1234)
-TENSOR_A_CPU = torch.rand(5000, 5000)
-TENSOR_B_CPU = torch.rand(5000, 5000)
+tensorSize = 128
 
 torch.manual_seed(1234)
-TENSOR_A_MPS = torch.rand(5000, 5000).to(device)
-TENSOR_B_MPS = torch.rand(5000, 5000).to(device)
+TENSOR_A_CPU = torch.rand(tensorSize, tensorSize)
+TENSOR_B_CPU = torch.rand(tensorSize, tensorSize)
+
+torch.manual_seed(1234)
+TENSOR_A_MPS = torch.rand(tensorSize, tensorSize).to(device)
+TENSOR_B_MPS = torch.rand(tensorSize, tensorSize).to(device)
 
 # Warm-up
 for _ in range(100):
