@@ -1,27 +1,22 @@
 import torch
 import torch.nn as nn
-import numpy as np
 import time
 
 from device import getTorchDevice
 
 
 class SpeedTestNet(nn.Module):
-    def __init__(self, num_hidden, device=torch.device("cpu")):
+    def __init__(self, num_hidden, num_layers, device=torch.device("cpu")):
         super().__init__()
 
         self.device = device
 
-        self.network = nn.Sequential(
-            nn.Linear(num_hidden, num_hidden),
-            nn.ReLU(),
-            nn.Linear(num_hidden, num_hidden),
-            nn.ReLU(),
-            nn.Linear(num_hidden, num_hidden),
-            nn.ReLU(),
-            nn.Linear(num_hidden, num_hidden),
-            nn.Tanh()
-        )
+        layers = []
+        for i in range(num_layers):
+            layers.append(nn.Linear(num_hidden, num_hidden))
+            layers.append(nn.ReLU())
+
+        self.network = nn.Sequential(*layers)
 
         self.to(device)
 
@@ -32,11 +27,13 @@ class SpeedTestNet(nn.Module):
 if __name__ == "__main__":
     device = getTorchDevice()
     print(f"Device being used is:", device)
-    tensorSize = 10000
-    accelModel = SpeedTestNet(tensorSize, getTorchDevice())
+    tensorSize = 256
+    layers = 20
+    batchSize = 256
+    accelModel = SpeedTestNet(tensorSize, layers, getTorchDevice())
     accelModel.eval()
 
-    cpuModel = SpeedTestNet(tensorSize, torch.device("cpu"))
+    cpuModel = SpeedTestNet(tensorSize, layers)
     cpuModel.eval()
 
     # Warm-up
@@ -45,9 +42,9 @@ if __name__ == "__main__":
                      torch.rand(500, 500).to(getTorchDevice()))
 
     start_time = time.time()
-    cpuModel(torch.rand(tensorSize))
+    cpuModel(torch.rand(batchSize, tensorSize))
     print("CPU : --- %s seconds ---" % (time.time() - start_time))
 
     start_time = time.time()
-    accelModel(torch.rand(tensorSize).to(getTorchDevice()))
+    accelModel(torch.rand(batchSize, tensorSize).to(getTorchDevice()))
     print("DEVICE : --- %s seconds ---" % (time.time() - start_time))
