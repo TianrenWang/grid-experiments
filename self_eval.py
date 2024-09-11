@@ -1,6 +1,8 @@
 import torch
 import numpy as np
 import os
+import csv
+import uuid
 
 from connect4 import ConnectFour
 from model import ResNet
@@ -8,20 +10,21 @@ from mcts import MCTS
 from device import getTorchDevice
 
 
-def getHumanReadableState(state):
-    return np.where(state == -1, 1, np.where(state == 1, 8, state))
-
-
-def testAgentVSAgent(version1: int, version2: int):
+def testAgentVSAgent(version1: int, version2: int, randomness: float = 0.1, numberOfGamesToPlay: int = 25, collectData: bool = False):
     print(f"Evaluating Version {version1} VS Version {version2}")
     game = ConnectFour()
     modelPath1 = f"version_{version1}"
     modelPath2 = f"version_{version2}"
-
-    args = {
+    args1 = {
         'C': 2,
         'num_searches': 0,
-        'dirichlet_epsilon': 0.1,
+        'dirichlet_epsilon': randomness,
+        'dirichlet_alpha': 0.3
+    }
+    args2 = {
+        'C': 2,
+        'num_searches': 0,
+        'dirichlet_epsilon': 0,
         'dirichlet_alpha': 0.3
     }
 
@@ -37,28 +40,46 @@ def testAgentVSAgent(version1: int, version2: int):
             f"results/{modelPath2}/model.pt", map_location=getTorchDevice(), weights_only=True))
     model2.eval()
 
-    mcts1 = MCTS(game, args, model1)
-    mcts2 = MCTS(game, args, model2)
+    mcts1 = MCTS(game, args1, model1)
+    mcts2 = MCTS(game, args2, model2)
 
     wins = 0
     losses = 0
     numberOfGames = 0
-    numberOfGamesToPlay = 400
+
+    states = []
+    stateLabels = []
+    encounteredStates = set()
 
     while numberOfGames < numberOfGamesToPlay:
+        state = game.get_initial_state()
+        gameId = uuid.uuid4()
+        collectorPlayer = 1
+        latentStatesOfCurrentGame = []
+        boardStatesOfCurrentGame = []
+        encountered = []
+        playFirst = []
         if numberOfGames < numberOfGamesToPlay / 2:
             player = 1
         else:
             player = -1
-        state = game.get_initial_state()
+        playFirstCurrentGame = collectorPlayer == player
         while True:
-            if player == 1:
+            if player == collectorPlayer:
                 neutral_state = game.change_perspective(state, player)
-                mcts_probs, _ = mcts1.search(neutral_state)
+                mcts_probs, latentState = mcts1.search(neutral_state)
                 action = np.argmax(mcts_probs)
+                latentStatesOfCurrentGame.append(latentState)
+                boardStatesOfCurrentGame.append(state)
+                playFirst.append(playFirstCurrentGame)
+                if str(state) in encounteredStates:
+                    encountered.append(True)
+                else:
+                    encountered.append(False)
+                    encounteredStates.add(str(state))
             else:
                 neutral_state = game.change_perspective(state, player)
-                mcts_probs, _ = mcts2.search(neutral_state)
+                mcts_probs, latentState = mcts2.search(neutral_state)
                 action = np.argmax(mcts_probs)
 
             state = game.get_next_state(state, action, player)
@@ -67,10 +88,28 @@ def testAgentVSAgent(version1: int, version2: int):
 
             if is_terminal:
                 if value == 1:
-                    if player == 1:
+                    if collectorPlayer == player:
                         wins += 1
                     else:
                         losses += 1
+                for i in range(len(latentStatesOfCurrentGame)):
+                    if encountered[i]:
+                        continue
+                    latentState = latentStatesOfCurrentGame[i]
+                    states.append(latentState.numpy().flatten().tolist())
+                    if value == 1:
+                        if collectorPlayer == player:
+                            outcome = "win"
+                        else:
+                            outcome = "loss"
+                    else:
+                        outcome = "draw"
+                    percentComplete = (i + 1) * \
+                        100 // len(latentStatesOfCurrentGame)
+                    if percentComplete < 10:
+                        percentComplete = "0" + str(percentComplete)
+                    stateLabels.append(
+                        [f"({i})", f"%{percentComplete}%", str(gameId)[:8], randomness, outcome, playFirst[i]])
                 break
 
             player = game.get_opponent(player)
@@ -79,6 +118,29 @@ def testAgentVSAgent(version1: int, version2: int):
     print(f"Version {version1} VS Version {version2} wins/losses:",
           str(wins), "/", str(losses))
 
+    if collectData:
+        folder_path = 'data'
+        os.makedirs(folder_path, exist_ok=True)
+        with open('data/states.tsv', 'a', newline='') as file:
+            writer = csv.writer(file, delimiter='\t')
+            writer.writerows(states)
+
+        hasFirstRow = False
+        stateLabelsFilePath = "data/stateLabels.tsv"
+        if os.path.exists(stateLabelsFilePath):
+            with open(stateLabelsFilePath, 'r') as file:
+                firstLine = file.readline()
+                hasFirstRow = not firstLine.strip()
+        else:
+            hasFirstRow = True
+
+        with open('data/stateLabels.tsv', 'a', newline='') as file:
+            writer = csv.writer(file, delimiter='\t')
+            if hasFirstRow:
+                writer.writerow(
+                    ["move", "progress", "ID", "randomness", "outcome", "first"])
+            writer.writerows(stateLabels)
+
 
 if __name__ == "__main__":
-    testAgentVSAgent(8, 7)
+    testAgentVSAgent(13, 13, 0.5, 400, True)
