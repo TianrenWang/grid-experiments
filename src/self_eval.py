@@ -145,15 +145,15 @@ def testAgentVSAgent(
     return states, stateLabels
 
 
-def saveGameData(states, stateLabels):
-    folder_path = "data"
+def saveGameData(states, stateLabels, dataName: str):
+    folder_path = "data/" + dataName
     os.makedirs(folder_path, exist_ok=True)
-    with open("data/states.tsv", "a", newline="") as file:
+    with open(folder_path + "/states.tsv", "a", newline="") as file:
         writer = csv.writer(file, delimiter="\t")
         writer.writerows(states)
 
     hasFirstRow = False
-    stateLabelsFilePath = "data/stateLabels.tsv"
+    stateLabelsFilePath = folder_path + "/stateLabels.tsv"
     if os.path.exists(stateLabelsFilePath):
         with open(stateLabelsFilePath, "r") as file:
             firstLine = file.readline()
@@ -161,7 +161,7 @@ def saveGameData(states, stateLabels):
     else:
         hasFirstRow = True
 
-    with open("data/stateLabels.tsv", "a", newline="") as file:
+    with open(stateLabelsFilePath, "a", newline="") as file:
         writer = csv.writer(file, delimiter="\t")
         if hasFirstRow:
             writer.writerow(
@@ -172,4 +172,4 @@ def saveGameData(states, stateLabels):
 
 if __name__ == "__main__":
     states, stateLabels = testAgentVSAgent(13, 13, 0.5, 400, True)
-    saveGameData(states, stateLabels)
+    saveGameData(states, stateLabels, "experiment")
