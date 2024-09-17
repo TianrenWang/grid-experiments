@@ -71,7 +71,7 @@ def testAgentVSAgent(
         boardStatesOfCurrentGame = []
         encountered = []
         playFirst = []
-        if numberOfGames < numberOfGamesToPlay / 2:
+        if numberOfGames % 2 == 0:
             player = 1
         else:
             player = -1
