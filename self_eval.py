@@ -15,7 +15,7 @@ def testAgentVSAgent(
     version2: int,
     randomness: float = 0.1,
     numberOfGamesToPlay: int = 25,
-    collectData: bool = False,
+    removeDuplicates: bool = False
 ):
     print(f"Evaluating Version {version1} VS Version {version2}")
     game = ConnectFour()
@@ -105,7 +105,7 @@ def testAgentVSAgent(
                     else:
                         losses += 1
                 for i in range(len(latentStatesOfCurrentGame)):
-                    if encountered[i]:
+                    if encountered[i] and removeDuplicates:
                         continue
                     latentState = latentStatesOfCurrentGame[i]
                     states.append(latentState.numpy().flatten().tolist())
@@ -142,30 +142,34 @@ def testAgentVSAgent(
         str(losses),
     )
 
-    if collectData:
-        folder_path = "data"
-        os.makedirs(folder_path, exist_ok=True)
-        with open("data/states.tsv", "a", newline="") as file:
-            writer = csv.writer(file, delimiter="\t")
-            writer.writerows(states)
+    return states, stateLabels
 
-        hasFirstRow = False
-        stateLabelsFilePath = "data/stateLabels.tsv"
-        if os.path.exists(stateLabelsFilePath):
-            with open(stateLabelsFilePath, "r") as file:
-                firstLine = file.readline()
-                hasFirstRow = not firstLine.strip()
-        else:
-            hasFirstRow = True
 
-        with open("data/stateLabels.tsv", "a", newline="") as file:
-            writer = csv.writer(file, delimiter="\t")
-            if hasFirstRow:
-                writer.writerow(
-                    ["move", "progress", "ID", "randomness", "outcome", "first"]
-                )
-            writer.writerows(stateLabels)
+def saveGameData(states, stateLabels):
+    folder_path = "data"
+    os.makedirs(folder_path, exist_ok=True)
+    with open("data/states.tsv", "a", newline="") as file:
+        writer = csv.writer(file, delimiter="\t")
+        writer.writerows(states)
+
+    hasFirstRow = False
+    stateLabelsFilePath = "data/stateLabels.tsv"
+    if os.path.exists(stateLabelsFilePath):
+        with open(stateLabelsFilePath, "r") as file:
+            firstLine = file.readline()
+            hasFirstRow = not firstLine.strip()
+    else:
+        hasFirstRow = True
+
+    with open("data/stateLabels.tsv", "a", newline="") as file:
+        writer = csv.writer(file, delimiter="\t")
+        if hasFirstRow:
+            writer.writerow(
+                ["move", "progress", "ID", "randomness", "outcome", "first"]
+            )
+        writer.writerows(stateLabels)
 
 
 if __name__ == "__main__":
-    testAgentVSAgent(13, 13, 0.5, 400, True)
+    states, stateLabels = testAgentVSAgent(13, 13, 0.5, 400, True)
+    saveGameData(states, stateLabels)
