@@ -10,34 +10,46 @@ from mcts import MCTS
 from device import getTorchDevice
 
 
-def testAgentVSAgent(version1: int, version2: int, randomness: float = 0.1, numberOfGamesToPlay: int = 25, collectData: bool = False):
+def testAgentVSAgent(
+    version1: int,
+    version2: int,
+    randomness: float = 0.1,
+    numberOfGamesToPlay: int = 25,
+    collectData: bool = False,
+):
     print(f"Evaluating Version {version1} VS Version {version2}")
     game = ConnectFour()
     modelPath1 = f"version_{version1}"
     modelPath2 = f"version_{version2}"
     args1 = {
-        'C': 2,
-        'num_searches': 0,
-        'dirichlet_epsilon': randomness,
-        'dirichlet_alpha': 0.3
+        "C": 2,
+        "num_searches": 0,
+        "dirichlet_epsilon": randomness,
+        "dirichlet_alpha": 0.3,
     }
-    args2 = {
-        'C': 2,
-        'num_searches': 0,
-        'dirichlet_epsilon': 0,
-        'dirichlet_alpha': 0.3
-    }
+    args2 = {"C": 2, "num_searches": 0,
+             "dirichlet_epsilon": 0, "dirichlet_alpha": 0.3}
 
     model1 = ResNet(game, 9, 128, getTorchDevice())
     if os.path.exists("results/" + modelPath1):
-        model1.load_state_dict(torch.load(
-            f"results/{modelPath1}/model.pt", map_location=getTorchDevice(), weights_only=True))
+        model1.load_state_dict(
+            torch.load(
+                f"results/{modelPath1}/model.pt",
+                map_location=getTorchDevice(),
+                weights_only=True,
+            )
+        )
     model1.eval()
 
     model2 = ResNet(game, 9, 128, getTorchDevice())
     if os.path.exists("results/" + modelPath2):
-        model2.load_state_dict(torch.load(
-            f"results/{modelPath2}/model.pt", map_location=getTorchDevice(), weights_only=True))
+        model2.load_state_dict(
+            torch.load(
+                f"results/{modelPath2}/model.pt",
+                map_location=getTorchDevice(),
+                weights_only=True,
+            )
+        )
     model2.eval()
 
     mcts1 = MCTS(game, args1, model1)
@@ -109,36 +121,49 @@ def testAgentVSAgent(version1: int, version2: int, randomness: float = 0.1, numb
                     if percentComplete < 10:
                         percentComplete = "0" + str(percentComplete)
                     stateLabels.append(
-                        [f"({i})", f"%{percentComplete}%", str(gameId)[:8], randomness, outcome, playFirst[i]])
+                        [
+                            f"({i})",
+                            f"%{percentComplete}%",
+                            str(gameId)[:8],
+                            randomness,
+                            outcome,
+                            playFirst[i],
+                        ]
+                    )
                 break
 
             player = game.get_opponent(player)
         numberOfGames += 1
 
-    print(f"Version {version1} VS Version {version2} wins/losses:",
-          str(wins), "/", str(losses))
+    print(
+        f"Version {version1} VS Version {version2} wins/losses:",
+        str(wins),
+        "/",
+        str(losses),
+    )
 
     if collectData:
-        folder_path = 'data'
+        folder_path = "data"
         os.makedirs(folder_path, exist_ok=True)
-        with open('data/states.tsv', 'a', newline='') as file:
-            writer = csv.writer(file, delimiter='\t')
+        with open("data/states.tsv", "a", newline="") as file:
+            writer = csv.writer(file, delimiter="\t")
             writer.writerows(states)
 
         hasFirstRow = False
         stateLabelsFilePath = "data/stateLabels.tsv"
         if os.path.exists(stateLabelsFilePath):
-            with open(stateLabelsFilePath, 'r') as file:
+            with open(stateLabelsFilePath, "r") as file:
                 firstLine = file.readline()
                 hasFirstRow = not firstLine.strip()
         else:
             hasFirstRow = True
 
-        with open('data/stateLabels.tsv', 'a', newline='') as file:
-            writer = csv.writer(file, delimiter='\t')
+        with open("data/stateLabels.tsv", "a", newline="") as file:
+            writer = csv.writer(file, delimiter="\t")
             if hasFirstRow:
                 writer.writerow(
-                    ["move", "progress", "ID", "randomness", "outcome", "first"])
+                    ["move", "progress", "ID", "randomness", "outcome", "first"]
+                )
             writer.writerows(stateLabels)
 
 
