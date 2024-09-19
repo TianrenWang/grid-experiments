@@ -17,7 +17,8 @@ class PlaceCells:
         bestMatchUnit = torch.matmul(states, self.placeCells.T)
         bestMatchUnit = torch.flatten(torch.argmax(bestMatchUnit, 1))
         firingCounts = torch.bincount(bestMatchUnit, minlength=self.numCells)
-        bestMatchVectors = torch.gather(self.placeCells, 0, bestMatchUnit)
+        bestMatchVectors = torch.index_select(
+            self.placeCells, 0, bestMatchUnit)
         distances = states - bestMatchVectors
         placeCellUpdates = torch.zeros(self.numCells, self.cellDim)
         placeCellUpdates = torch.scatter_add(placeCellUpdates,
@@ -28,6 +29,11 @@ class PlaceCells:
             self.placeCells.data.copy_(
                 self.placeCells + placeCellUpdates * self.learningRate)
 
+    """
+    Practically, this function is pretty useless because all place cells are visisted at
+    very similar frequencies. Not even a magnitude of difference.
+    """
+
     def recalibrate(self):
         mostVisitedIndex = torch.argmax(self.fireFrequency).item()
         leastVisitedIndex = torch.argmin(self.fireFrequency).item()
@@ -36,3 +42,11 @@ class PlaceCells:
         if leastVisitedCount * self.relocationThreshold < mostVisitedCount and mostVisitedCount > self.relocationThreshold:
             with torch.no_grad():
                 self.placeCells[leastVisitedIndex] = self.placeCells[mostVisitedIndex]
+
+    def evaluate(self, states: torch.Tensor):
+        bestMatchUnit = torch.matmul(states, self.placeCells.T)
+        bestMatchUnit = torch.flatten(torch.argmax(bestMatchUnit, 1))
+        bestMatchVectors = torch.index_select(
+            self.placeCells, 0, bestMatchUnit)
+        distances = torch.norm(states - bestMatchVectors, dim=1)
+        return torch.sum((torch.relu(distances - 5) > 0).int())
