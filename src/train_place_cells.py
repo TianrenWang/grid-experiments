@@ -34,7 +34,7 @@ if __name__ == "__main__":
         "data/removed_duplicates/states.tsv", delimiter="\t").tolist()
     overlayedStates = placeCells.placeCells.numpy().tolist() + cleanStates
 
-    stateLabels = [["place"] * 6] * 256 + [["none"] * 6] * len(cleanStates)
+    stateLabels = [["place"] * 6] * 256
     stateDict = {}
     for i in range(len(cleanStates)):
         stateId = str(uuid.uuid4())
