@@ -30,18 +30,32 @@ if __name__ == "__main__":
         print(
             f"{i} - Current miss: {placeCells.evaluate(torch.tensor(data).to(torch.float))}")
 
-    cleanStates = np.loadtxt(
-        "data/removed_duplicates/states.tsv", delimiter="\t").tolist()
-    overlayedStates = placeCells.placeCells.numpy().tolist() + cleanStates
+    states = np.loadtxt(
+        "data/place_cell_training/states.tsv", delimiter="\t").tolist()
 
-    stateLabels = [["place"] * 6] * 256
+    encounteredStates = set()
+    uniqueStates = []
+
+    for state in states:
+        stateStr = str(state)
+        if stateStr not in encounteredStates:
+            uniqueStates.append(state)
+            encounteredStates.add(stateStr)
+
+    overlayedStates = placeCells.placeCells.numpy().tolist() + uniqueStates
+
+    stateLabels = []
     stateDict = {}
-    for i in range(len(cleanStates)):
-        stateId = str(uuid.uuid4())
-        stateLabels.append([stateId, "", "", "", "", ""])
-        stateDict[stateId] = np.array(overlayedStates[256 + i])
+    for i in range(len(overlayedStates)):
+        stateId = str(uuid.uuid4())[:8]
+        currentLabels = ["normal", stateId]
+        if i < 256:
+            currentLabels = ["place", stateId]
+        stateLabels.append(currentLabels)
+        stateDict[stateId] = np.array(overlayedStates[i])
 
-    saveGameData(overlayedStates, stateLabels, "place_cell_result")
+    saveGameData(overlayedStates, stateLabels,
+                 "place_cell_result_cleaned", ["isPlace", "ID"])
 
     while True:
         found = False

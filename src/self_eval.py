@@ -15,7 +15,7 @@ def testAgentVSAgent(
     version2: int,
     randomness: float = 0.1,
     numberOfGamesToPlay: int = 25,
-    removeDuplicates: bool = False
+    removeDuplicates: bool = False,
 ):
     print(f"Evaluating Version {version1} VS Version {version2}")
     game = ConnectFour()
@@ -145,7 +145,12 @@ def testAgentVSAgent(
     return states, stateLabels
 
 
-def saveGameData(states, stateLabels, dataName: str):
+def saveGameData(
+    states,
+    stateLabels,
+    dataName: str,
+    columnNames=["move", "progress", "ID", "randomness", "outcome", "first"],
+):
     folder_path = "data/" + dataName
     os.makedirs(folder_path, exist_ok=True)
     with open(folder_path + "/states.tsv", "a", newline="") as file:
@@ -164,9 +169,7 @@ def saveGameData(states, stateLabels, dataName: str):
     with open(stateLabelsFilePath, "a", newline="") as file:
         writer = csv.writer(file, delimiter="\t")
         if hasFirstRow:
-            writer.writerow(
-                ["move", "progress", "ID", "randomness", "outcome", "first"]
-            )
+            writer.writerow(columnNames)
         writer.writerows(stateLabels)
 
 

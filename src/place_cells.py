@@ -49,4 +49,4 @@ class PlaceCells:
         bestMatchVectors = torch.index_select(
             self.placeCells, 0, bestMatchUnit)
         distances = torch.norm(states - bestMatchVectors, dim=1)
-        return torch.sum((torch.relu(distances - 5) > 0).int())
+        return torch.sum((torch.relu(distances - 50) > 0).int())
