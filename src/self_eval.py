@@ -13,22 +13,23 @@ from device import getTorchDevice
 def testAgentVSAgent(
     version1: int,
     version2: int,
+    expName1: str,
+    expName2: str,
     randomness: float = 0.1,
     numberOfGamesToPlay: int = 25,
     removeDuplicates: bool = False,
 ):
     print(f"Evaluating Version {version1} VS Version {version2}")
     game = ConnectFour()
-    modelPath1 = f"version_{version1}"
-    modelPath2 = f"version_{version2}"
+    modelPath1 = f"{expName1}/version_{version1}"
+    modelPath2 = f"{expName2}/version_{version2}"
     args1 = {
         "C": 2,
         "num_searches": 0,
         "dirichlet_epsilon": randomness,
         "dirichlet_alpha": 0.3,
     }
-    args2 = {"C": 2, "num_searches": 0,
-             "dirichlet_epsilon": 0, "dirichlet_alpha": 0.3}
+    args2 = {"C": 2, "num_searches": 0, "dirichlet_epsilon": 0, "dirichlet_alpha": 0.3}
 
     model1 = ResNet(game, 9, 128, getTorchDevice())
     if os.path.exists("results/" + modelPath1):
@@ -116,8 +117,7 @@ def testAgentVSAgent(
                             outcome = "loss"
                     else:
                         outcome = "draw"
-                    percentComplete = (i + 1) * \
-                        100 // len(latentStatesOfCurrentGame)
+                    percentComplete = (i + 1) * 100 // len(latentStatesOfCurrentGame)
                     if percentComplete < 10:
                         percentComplete = "0" + str(percentComplete)
                     stateLabels.append(
@@ -174,5 +174,5 @@ def saveGameData(
 
 
 if __name__ == "__main__":
-    states, stateLabels = testAgentVSAgent(13, 13, 0.5, 400, True)
+    states, stateLabels = testAgentVSAgent(13, 13, "control", "control", 0.5, 400, True)
     saveGameData(states, stateLabels, "experiment")
