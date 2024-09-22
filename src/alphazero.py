@@ -6,7 +6,7 @@ from datetime import datetime
 import os
 
 from mcts import MCTSParallel
-from self_eval import testAgentVSAgent
+from self_eval import testAgentVSAgent, Agent
 
 
 class AlphaZeroParallel:
@@ -144,7 +144,10 @@ class AlphaZeroParallel:
             torch.save(self.model.state_dict(), folderPath + "/model.pt")
             torch.save(self.optimizer.state_dict(), folderPath + "/optimizer.pt")
 
-            testAgentVSAgent(iteration, 13, experimentName, "control", 0, 400)
+            testAgentVSAgent(
+                Agent(experimentName, iteration, self.model), numberOfGamesToPlay=400
+            )
+            self.model.train()
 
 
 class SPG:

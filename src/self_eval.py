@@ -9,52 +9,53 @@ from model import ResNet
 from mcts import MCTS
 from device import getTorchDevice
 
+game = ConnectFour()
+
+
+class Agent:
+    def __init__(
+        self,
+        expName: str,
+        version: int,
+        model: torch.nn.Module,
+        randomness: float = 0.1,
+        loadModel: bool = False,
+    ):
+        self.expName = expName
+        self.version = version
+        self.randomness = randomness
+        self.model = model
+        if loadModel:
+            self.modelPath = f"{expName}/version_{version}"
+            if os.path.exists("results/" + self.modelPath):
+                self.model.load_state_dict(
+                    torch.load(
+                        f"results/{self.modelPath}/model.pt",
+                        map_location=getTorchDevice(),
+                        weights_only=True,
+                    )
+                )
+        self.model.eval()
+        self.args = {
+            "C": 2,
+            "num_searches": 0,
+            "dirichlet_epsilon": randomness,
+            "dirichlet_alpha": 0.3,
+        }
+        self.mcts = MCTS(game, self.args, self.model)
+
 
 def testAgentVSAgent(
-    version1: int,
-    version2: int,
-    expName1: str,
-    expName2: str,
-    randomness: float = 0.1,
+    agent1: Agent,
+    agent2: Agent = Agent(
+        "control", 13, ResNet(game, 9, 128, getTorchDevice()), 0, True
+    ),
     numberOfGamesToPlay: int = 25,
     removeDuplicates: bool = False,
 ):
-    print(f"Evaluating Version {version1} VS Version {version2}")
-    game = ConnectFour()
-    modelPath1 = f"{expName1}/version_{version1}"
-    modelPath2 = f"{expName2}/version_{version2}"
-    args1 = {
-        "C": 2,
-        "num_searches": 0,
-        "dirichlet_epsilon": randomness,
-        "dirichlet_alpha": 0.3,
-    }
-    args2 = {"C": 2, "num_searches": 0, "dirichlet_epsilon": 0, "dirichlet_alpha": 0.3}
-
-    model1 = ResNet(game, 9, 128, getTorchDevice())
-    if os.path.exists("results/" + modelPath1):
-        model1.load_state_dict(
-            torch.load(
-                f"results/{modelPath1}/model.pt",
-                map_location=getTorchDevice(),
-                weights_only=True,
-            )
-        )
-    model1.eval()
-
-    model2 = ResNet(game, 9, 128, getTorchDevice())
-    if os.path.exists("results/" + modelPath2):
-        model2.load_state_dict(
-            torch.load(
-                f"results/{modelPath2}/model.pt",
-                map_location=getTorchDevice(),
-                weights_only=True,
-            )
-        )
-    model2.eval()
-
-    mcts1 = MCTS(game, args1, model1)
-    mcts2 = MCTS(game, args2, model2)
+    print(
+        f"Evaluating {agent1.expName} Version {agent1.version} VS {agent2.expName} Version {agent2.version}"
+    )
 
     wins = 0
     losses = 0
@@ -80,7 +81,7 @@ def testAgentVSAgent(
         while True:
             if player == collectorPlayer:
                 neutral_state = game.change_perspective(state, player)
-                mcts_probs, latentState = mcts1.search(neutral_state)
+                mcts_probs, latentState = agent1.mcts.search(neutral_state)
                 action = np.argmax(mcts_probs)
                 latentStatesOfCurrentGame.append(latentState)
                 boardStatesOfCurrentGame.append(state)
@@ -92,7 +93,7 @@ def testAgentVSAgent(
                     encounteredStates.add(str(state))
             else:
                 neutral_state = game.change_perspective(state, player)
-                mcts_probs, latentState = mcts2.search(neutral_state)
+                mcts_probs, latentState = agent2.mcts.search(neutral_state)
                 action = np.argmax(mcts_probs)
 
             state = game.get_next_state(state, action, player)
@@ -125,7 +126,7 @@ def testAgentVSAgent(
                             f"({i})",
                             f"%{percentComplete}%",
                             str(gameId)[:8],
-                            randomness,
+                            agent1.randomness,
                             outcome,
                             playFirst[i],
                         ]
@@ -136,7 +137,7 @@ def testAgentVSAgent(
         numberOfGames += 1
 
     print(
-        f"Version {version1} VS Version {version2} wins/losses:",
+        f"{agent1.expName} Version {agent1.version} VS {agent2.expName} Version {agent2.version} wins/losses:",
         str(wins),
         "/",
         str(losses),
@@ -174,5 +175,9 @@ def saveGameData(
 
 
 if __name__ == "__main__":
-    states, stateLabels = testAgentVSAgent(13, 13, "control", "control", 0.5, 400, True)
+    model = ResNet(game, 9, 128, getTorchDevice())
+    agent = Agent("control", 13, model, 0.5, True)
+    states, stateLabels = testAgentVSAgent(
+        agent, numberOfGamesToPlay=400, removeDuplicates=True
+    )
     saveGameData(states, stateLabels, "experiment")
