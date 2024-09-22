@@ -9,29 +9,29 @@ if __name__ == "__main__":
     Changing the number of cells doesn't significantly improve coverage. I think
     a strictly linear distance loss is insufficient.
     """
-    placeCells = PlaceCells(256, 5376, 0.0001, 200)
+    placeCells = PlaceCells(256, 5376, 50, 0.0001, 200)
 
     data = np.loadtxt("data/place_cell_training/states.tsv", delimiter="\t")
 
     batchSize = 32
     iterations = 100
 
-    print(
-        f"Starting miss: {placeCells.evaluate(torch.tensor(data).to(torch.float))}")
+    print(f"Starting miss: {placeCells.evaluate(torch.tensor(data).to(torch.float))}")
 
     for i in range(iterations):
         np.random.shuffle(data)
         for j in range(0, len(data), batchSize):
-            actualBatchSize = j + batchSize if j + \
-                batchSize < len(data) else len(data) - j
-            batch = data[j:j + actualBatchSize]
+            actualBatchSize = (
+                j + batchSize if j + batchSize < len(data) else len(data) - j
+            )
+            batch = data[j : j + actualBatchSize]
             placeCells.train(torch.tensor(batch).to(torch.float))
 
         print(
-            f"{i} - Current miss: {placeCells.evaluate(torch.tensor(data).to(torch.float))}")
+            f"{i} - Current miss: {placeCells.evaluate(torch.tensor(data).to(torch.float))}"
+        )
 
-    states = np.loadtxt(
-        "data/place_cell_training/states.tsv", delimiter="\t").tolist()
+    states = np.loadtxt("data/place_cell_training/states.tsv", delimiter="\t").tolist()
 
     encounteredStates = set()
     uniqueStates = []
@@ -54,8 +54,9 @@ if __name__ == "__main__":
         stateLabels.append(currentLabels)
         stateDict[stateId] = np.array(overlayedStates[i])
 
-    saveGameData(overlayedStates, stateLabels,
-                 "place_cell_result_cleaned", ["isPlace", "ID"])
+    saveGameData(
+        overlayedStates, stateLabels, "place_cell_result_cleaned", ["isPlace", "ID"]
+    )
 
     while True:
         found = False
