@@ -110,7 +110,7 @@ def testAgentVSAgent(
                     if encountered[i] and removeDuplicates:
                         continue
                     latentState = latentStatesOfCurrentGame[i]
-                    states.append(latentState.numpy().flatten().tolist())
+                    states.append(latentState.cpu().numpy().flatten().tolist())
                     if value == 1:
                         if collectorPlayer == player:
                             outcome = "win"
