@@ -3,20 +3,23 @@ import torch
 import uuid
 from place_cells import PlaceCells
 from self_eval import saveGameData
+from device import getTorchDevice
 
 if __name__ == "__main__":
     """
     Changing the number of cells doesn't significantly improve coverage. I think
     a strictly linear distance loss is insufficient.
     """
-    placeCells = PlaceCells(256, 5376, 50, 0.0001, 200)
+    placeCells = PlaceCells(256, 5376, 100, 0.0001)
 
     data = np.loadtxt("data/place_cell_training/states.tsv", delimiter="\t")
 
     batchSize = 32
     iterations = 100
 
-    print(f"Starting miss: {placeCells.evaluate(torch.tensor(data).to(torch.float))}")
+    print(
+        f"Starting miss: {placeCells.evaluate(torch.tensor(data).to(torch.float).to(getTorchDevice()))}"
+    )
 
     for i in range(iterations):
         np.random.shuffle(data)
@@ -25,11 +28,21 @@ if __name__ == "__main__":
                 j + batchSize if j + batchSize < len(data) else len(data) - j
             )
             batch = data[j : j + actualBatchSize]
-            placeCells.train(torch.tensor(batch).to(torch.float))
+            placeCells.train(torch.tensor(batch).to(torch.float).to(getTorchDevice()))
 
         print(
-            f"{i} - Current miss: {placeCells.evaluate(torch.tensor(data).to(torch.float))}"
+            f"{i} - Current miss: {placeCells.evaluate(torch.tensor(data).to(torch.float).to(getTorchDevice()))}"
         )
+
+    # activations = (
+    #     placeCells.getActivations(torch.tensor(data[:1000]).to(torch.float))
+    #     .cpu()
+    #     .numpy()
+    # )
+    # print(np.round(np.max(activations, 1), 2))
+    # while True:
+    #     index = int(input("Enter index of batch: "))
+    #     print(np.round(activations[index], 2))
 
     states = np.loadtxt("data/place_cell_training/states.tsv", delimiter="\t").tolist()
 
@@ -42,7 +55,7 @@ if __name__ == "__main__":
             uniqueStates.append(state)
             encounteredStates.add(stateStr)
 
-    overlayedStates = placeCells.placeCells.numpy().tolist() + uniqueStates
+    overlayedStates = placeCells.placeCells.cpu().numpy().tolist() + uniqueStates
 
     stateLabels = []
     stateDict = {}
@@ -72,5 +85,5 @@ if __name__ == "__main__":
             found = True
         state1 = stateDict[firstId]
         state2 = stateDict[secondId]
-        distance = np.linalg.norm(state1 - state2)
+        distance = np.sum(np.abs(state1 - state2))
         print("Distance is:", distance)
