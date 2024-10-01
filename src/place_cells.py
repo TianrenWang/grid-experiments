@@ -4,7 +4,7 @@ import torch.nn as nn
 from device import getTorchDevice
 
 
-class PlaceCells:
+class PlaceCells(nn.Module):
     def __init__(
         self,
         numCells: int,
@@ -14,26 +14,25 @@ class PlaceCells:
         cellPositions: torch.Tensor,
         relocationThreshold: int = 200,
     ):
+        super().__init__()
         self.numCells = numCells
         self.cellDim = cellDim
         self.learningRate = learningRate
         self.fieldSize = fieldSize
-        self.placeCells = nn.Parameter(cellPositions, requires_grad=False).to(
-            getTorchDevice()
-        )
+        self.register_buffer("placeCells", cellPositions.to(getTorchDevice()))
         # self.relocationThreshold = relocationThreshold
         # self.fireFrequency = nn.Parameter(
         #     torch.zeros(numCells), requires_grad=False)
 
-    def getActivations(self, states: torch.Tensor):
-        states = states.to(getTorchDevice())
+    def forward(self, x):
+        states = torch.reshape(x.to(getTorchDevice()), (-1, self.cellDim))
         diff = states.unsqueeze(1) - self.placeCells.unsqueeze(0)
         dists_squared = torch.sum(torch.abs(diff), dim=-1) ** 2
         unnormalized_activations = -dists_squared / (2 * self.fieldSize**2)
         return torch.nn.functional.softmax(unnormalized_activations, dim=1)
 
-    def train(self, states: torch.Tensor):
-        states = states.to(getTorchDevice())
+    def tuneCells(self, states: torch.Tensor):
+        states = torch.reshape(states.to(getTorchDevice()), (-1, self.cellDim))
         bestMatchUnit = torch.matmul(states, self.placeCells.T)
         bestMatchUnit = torch.flatten(torch.argmax(bestMatchUnit, 1))
         # firingCounts = torch.bincount(bestMatchUnit, minlength=self.numCells)
@@ -50,7 +49,7 @@ class PlaceCells:
         with torch.no_grad():
             # self.fireFrequency.data.copy_(self.fireFrequency + firingCounts)
             newPlaceCells = self.placeCells + placeCellUpdates * self.learningRate
-            self.placeCells.data.copy_(newPlaceCells.to(getTorchDevice()))
+            self.placeCells = newPlaceCells.to(getTorchDevice())
 
     """
     Practically, this function is useless because all place cells are visited at
@@ -69,9 +68,8 @@ class PlaceCells:
             with torch.no_grad():
                 self.placeCells[leastVisitedIndex] = self.placeCells[mostVisitedIndex]
 
-    def evaluate(self, states: torch.Tensor):
+    def getTotalDistance(self, states: torch.Tensor):
         bestMatchUnit = torch.matmul(states, self.placeCells.T)
         bestMatchUnit = torch.flatten(torch.argmax(bestMatchUnit, 1))
         bestMatchVectors = torch.index_select(self.placeCells, 0, bestMatchUnit)
-        distances = torch.sum(torch.abs(states - bestMatchVectors), dim=1)
-        return torch.sum((torch.relu(distances - self.fieldSize) > 0).int())
+        return torch.sum(torch.abs(states - bestMatchVectors))

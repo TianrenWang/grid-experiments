@@ -13,7 +13,7 @@ if __name__ == "__main__":
         cellDim,
         100,
         0.0001,
-        torch.relu(torch.randn(numCells, cellDim) * 2.5 + 7.5),
+        torch.randn(numCells, cellDim) * 2.5 + 7.5,
     )
 
     data = np.loadtxt("data/place_cell_training/states.tsv", delimiter="\t")
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     iterations = 100
 
     print(
-        f"Starting miss: {placeCells.evaluate(torch.tensor(data).to(torch.float).to(getTorchDevice()))}"
+        f"Starting distance: {placeCells.getTotalDistance(torch.tensor(data).to(torch.float).to(getTorchDevice()))}"
     )
 
     for i in range(iterations):
@@ -32,10 +32,12 @@ if __name__ == "__main__":
                 j + batchSize if j + batchSize < len(data) else len(data) - j
             )
             batch = data[j : j + actualBatchSize]
-            placeCells.train(torch.tensor(batch).to(torch.float).to(getTorchDevice()))
+            placeCells.tuneCells(
+                torch.tensor(batch).to(torch.float).to(getTorchDevice())
+            )
 
         print(
-            f"{i} - Current miss: {placeCells.evaluate(torch.tensor(data).to(torch.float).to(getTorchDevice()))}"
+            f"{i} - Distance: {placeCells.getTotalDistance(torch.tensor(data).to(torch.float).to(getTorchDevice()))}"
         )
 
     # activations = (
