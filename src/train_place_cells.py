@@ -6,11 +6,15 @@ from self_eval import saveGameData
 from device import getTorchDevice
 
 if __name__ == "__main__":
-    """
-    Changing the number of cells doesn't significantly improve coverage. I think
-    a strictly linear distance loss is insufficient.
-    """
-    placeCells = PlaceCells(256, 5376, 100, 0.0001)
+    numCells = 256
+    cellDim = 5376
+    placeCells = PlaceCells(
+        numCells,
+        cellDim,
+        100,
+        0.0001,
+        torch.relu(torch.randn(numCells, cellDim) * 2.5 + 7.5),
+    )
 
     data = np.loadtxt("data/place_cell_training/states.tsv", delimiter="\t")
 

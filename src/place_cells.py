@@ -11,15 +11,16 @@ class PlaceCells:
         cellDim: int,
         fieldSize: float,
         learningRate: float,
+        cellPositions: torch.Tensor,
         relocationThreshold: int = 200,
     ):
         self.numCells = numCells
         self.cellDim = cellDim
         self.learningRate = learningRate
         self.fieldSize = fieldSize
-        self.placeCells = nn.Parameter(
-            torch.relu(torch.randn(numCells, cellDim) * 2.5 + 7.5), requires_grad=False
-        ).to(getTorchDevice())
+        self.placeCells = nn.Parameter(cellPositions, requires_grad=False).to(
+            getTorchDevice()
+        )
         # self.relocationThreshold = relocationThreshold
         # self.fireFrequency = nn.Parameter(
         #     torch.zeros(numCells), requires_grad=False)
