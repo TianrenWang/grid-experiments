@@ -152,7 +152,6 @@ class PlaceCellResNet(ResNet):
             noGradLatentState = torch.Tensor(x)
 
         place = self.placeCellsHead(noGradLatentState)
-        place = torch.nn.functional.softmax(place, dim=1)
 
         with torch.no_grad():
             noGradPlace = torch.Tensor(place)
