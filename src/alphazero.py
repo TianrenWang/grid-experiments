@@ -99,11 +99,18 @@ class AlphaZeroParallel:
                 value_targets, dtype=torch.float32, device=self.model.device
             )
 
-            out_policy, out_value, _ = self.model(state)
+            loss = 0
+            modelOutput = self.model(state)
+            if len(modelOutput) == 3:
+                out_policy, out_value, out_latent = modelOutput
+            else:
+                out_policy, out_value, out_place, out_latent = modelOutput
+                place_targets = self.model.placeCells(out_latent)
+                loss += F.cross_entropy(out_place, place_targets)
 
             policy_loss = F.cross_entropy(out_policy, policy_targets)
             value_loss = F.mse_loss(out_value, value_targets)
-            loss = policy_loss + value_loss
+            loss += policy_loss + value_loss
 
             self.optimizer.zero_grad()
             loss.backward()

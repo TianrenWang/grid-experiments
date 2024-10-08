@@ -2,7 +2,7 @@ import torch
 import os
 
 from connect4 import ConnectFour
-from model import ResNet
+from model import ResNet, PlaceCellResNet
 from alphazero import AlphaZeroParallel
 from device import getTorchDevice
 
@@ -12,7 +12,8 @@ if __name__ == "__main__":
     previousVersion = None
     experimentName = "place_cells"
 
-    model = ResNet(game, 9, 128, getTorchDevice())
+    # model = ResNet(game, 9, 128, getTorchDevice())
+    model = PlaceCellResNet(game, 9, 128, 256, 5376, 100, 0.0001, getTorchDevice())
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0001)
 
     args = {
