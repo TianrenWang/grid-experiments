@@ -12,21 +12,18 @@ class NormalizedLatent(nn.Module):
         self.device = device
         self.startBlock = nn.Sequential(
             nn.Conv2d(3, num_hidden, kernel_size=3, padding=1),
-            nn.LayerNorm((num_hidden, game.row_count, game.column_count)),
+            nn.InstanceNorm2d(num_hidden),
             nn.ReLU(),
         )
 
         self.backBone = nn.ModuleList(
-            [
-                LayerResBlock(num_hidden, game.row_count, game.column_count)
-                for i in range(num_resBlocks)
-            ]
-            + [nn.LayerNorm((num_hidden, game.row_count, game.column_count))]
+            [InstanceResBlock(num_hidden) for i in range(num_resBlocks)]
+            + [nn.InstanceNorm2d(num_hidden)]
         )
 
         self.policyHead = nn.Sequential(
             nn.Conv2d(num_hidden, 32, kernel_size=3, padding=1),
-            nn.LayerNorm((32, game.row_count, game.column_count)),
+            nn.InstanceNorm2d(32),
             nn.ReLU(),
             nn.Flatten(),
             nn.Linear(32 * game.row_count * game.column_count, game.action_size),
@@ -34,7 +31,7 @@ class NormalizedLatent(nn.Module):
 
         self.valueHead = nn.Sequential(
             nn.Conv2d(num_hidden, 3, kernel_size=3, padding=1),
-            nn.LayerNorm((3, game.row_count, game.column_count)),
+            nn.InstanceNorm2d(3),
             nn.ReLU(),
             nn.Flatten(),
             nn.Linear(3 * game.row_count * game.column_count, 1),
@@ -52,13 +49,13 @@ class NormalizedLatent(nn.Module):
         return policy, value, x
 
 
-class LayerResBlock(nn.Module):
-    def __init__(self, num_hidden, width, height):
+class InstanceResBlock(nn.Module):
+    def __init__(self, num_hidden):
         super().__init__()
         self.conv1 = nn.Conv2d(num_hidden, num_hidden, kernel_size=3, padding=1)
-        self.bn1 = nn.LayerNorm((num_hidden, width, height))
+        self.bn1 = nn.InstanceNorm2d(num_hidden)
         self.conv2 = nn.Conv2d(num_hidden, num_hidden, kernel_size=3, padding=1)
-        self.bn2 = nn.LayerNorm((num_hidden, width, height))
+        self.bn2 = nn.InstanceNorm2d(num_hidden)
 
     def forward(self, x):
         residual = x
