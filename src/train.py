@@ -2,7 +2,7 @@ import torch
 import os
 
 from connect4 import ConnectFour
-from model import ResNet, PlaceCellResNet
+from models import ResNet, PlaceCellResNet, NormalizedLatent
 from alphazero import AlphaZeroParallel
 from device import getTorchDevice
 

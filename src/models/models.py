@@ -2,7 +2,7 @@ import torch.nn.functional as F
 import torch.nn as nn
 import torch
 
-from place_cells import PlaceCells
+from .place_cells import PlaceCells
 
 torch.manual_seed(0)
 
