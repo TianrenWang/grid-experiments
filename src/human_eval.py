@@ -3,7 +3,7 @@ import numpy as np
 import os
 
 from connect4 import ConnectFour
-from model import ResNet
+from models import ResNet
 from mcts import MCTS
 from device import getTorchDevice
 
@@ -17,10 +17,10 @@ if __name__ == "__main__":
     player = 1
 
     args = {
-        'C': 2,
-        'num_searches': 600,
-        'dirichlet_epsilon': 0.,
-        'dirichlet_alpha': 0.3
+        "C": 2,
+        "num_searches": 600,
+        "dirichlet_epsilon": 0.0,
+        "dirichlet_alpha": 0.3,
     }
 
     model = ResNet(game, 9, 128, getTorchDevice())
@@ -28,8 +28,7 @@ if __name__ == "__main__":
     modelPath = "alphazero_model.pt"
 
     if os.path.exists(modelPath):
-        model.load_state_dict(torch.load(
-            "", map_location=getTorchDevice()))
+        model.load_state_dict(torch.load("", map_location=getTorchDevice()))
     model.eval()
 
     mcts = MCTS(game, args, model)
@@ -41,8 +40,10 @@ if __name__ == "__main__":
 
         if player == 1:
             valid_moves = game.get_valid_moves(state)
-            print("valid_moves", [i for i in range(
-                game.action_size) if valid_moves[i] == 1])
+            print(
+                "valid_moves",
+                [i for i in range(game.action_size) if valid_moves[i] == 1],
+            )
             action = int(input(f"{player}:"))
 
             if valid_moves[action] == 0:
