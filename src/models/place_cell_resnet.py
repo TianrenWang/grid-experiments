@@ -35,7 +35,7 @@ class PlaceCellResNet(NormalizedLatent):
             cellDim,
             field,
             cellLearningRate,
-            torch.randn(numCells, cellDim) * 2.5 + 7.5,
+            torch.randn(numCells, cellDim),
         )
 
         self.placeCellsHead = nn.Sequential(
