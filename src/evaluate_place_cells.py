@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import csv
 
-from place_cells import PlaceCells
+from models import PlaceCells
 
 
 def findFiringCells(dataPath: str, numCells: int, cellDim: int, firingField: float):
