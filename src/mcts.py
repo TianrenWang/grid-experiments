@@ -50,6 +50,7 @@ class Node:
         )
 
     def expand(self, policy):
+        child = None
         for action, prob in enumerate(policy):
             if prob > 0:
                 child_state = self.state.copy()
