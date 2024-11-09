@@ -12,18 +12,18 @@ class NormalizedLatent(nn.Module):
         self.device = device
         self.startBlock = nn.Sequential(
             nn.Conv2d(3, num_hidden, kernel_size=3, padding=1),
-            nn.InstanceNorm2d(num_hidden),
+            nn.GroupNorm(4, num_hidden),
             nn.ReLU(),
         )
 
         self.backBone = nn.ModuleList(
-            [InstanceResBlock(num_hidden) for i in range(num_resBlocks)]
-            + [nn.InstanceNorm2d(num_hidden)]
+            [GroupNormResBlock(num_hidden) for i in range(num_resBlocks)]
+            + [nn.GroupNorm(4, num_hidden)]
         )
 
         self.policyHead = nn.Sequential(
             nn.Conv2d(num_hidden, 32, kernel_size=3, padding=1),
-            nn.InstanceNorm2d(32),
+            nn.GroupNorm(4, 32),
             nn.ReLU(),
             nn.Flatten(),
             nn.Linear(32 * game.row_count * game.column_count, game.action_size),
@@ -49,13 +49,13 @@ class NormalizedLatent(nn.Module):
         return policy, value, x
 
 
-class InstanceResBlock(nn.Module):
+class GroupNormResBlock(nn.Module):
     def __init__(self, num_hidden):
         super().__init__()
         self.conv1 = nn.Conv2d(num_hidden, num_hidden, kernel_size=3, padding=1)
-        self.bn1 = nn.InstanceNorm2d(num_hidden)
+        self.bn1 = nn.GroupNorm(4, num_hidden)
         self.conv2 = nn.Conv2d(num_hidden, num_hidden, kernel_size=3, padding=1)
-        self.bn2 = nn.InstanceNorm2d(num_hidden)
+        self.bn2 = nn.GroupNorm(4, num_hidden)
 
     def forward(self, x):
         residual = x

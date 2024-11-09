@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch
 
 from .place_cells import PlaceCells
-from .normalized_latent import NormalizedLatent, InstanceResBlock
+from .normalized_latent import NormalizedLatent, GroupNormResBlock
 
 
 class FCBlock(nn.Module):
@@ -39,9 +39,9 @@ class PlaceCellResNet(NormalizedLatent):
         )
 
         self.placeCellsHead = nn.Sequential(
-            *nn.ModuleList([InstanceResBlock(num_hidden) for i in range(3)]),
+            *nn.ModuleList([GroupNormResBlock(num_hidden) for i in range(3)]),
             nn.Conv2d(num_hidden, 32, kernel_size=3, padding=1),
-            nn.InstanceNorm2d(32),
+            nn.GroupNorm(4, 32),
             nn.ReLU(),
             nn.Flatten(),
             nn.Linear(32 * game.row_count * game.column_count, numCells),
@@ -65,7 +65,7 @@ class PlaceCellResNet(NormalizedLatent):
 
         self.prePolicyHead = nn.Sequential(
             nn.Conv2d(num_hidden, 32, kernel_size=3, padding=1),
-            nn.InstanceNorm2d(32),
+            nn.GroupNorm(4, 32),
             nn.ReLU(),
             nn.Flatten(),
         )
