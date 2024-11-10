@@ -141,12 +141,22 @@ class PlaceCellResNet(ResNet):
 
         self.to(device)
 
-    def forward(self, x):
+    def getFinalLatent(self, x):
         x = self.startBlock(x)
         for resBlock in self.backBone:
             x = resBlock(x)
+        return x
+
+    def forward(self, input):
+        wasTraining = self.training
+        x = self.getFinalLatent(input)
+
+        self.train(False)
+        xEval = self.getFinalLatent(input)
+        self.train(wasTraining)
+
         if self.training:
-            self.placeCells.tuneCells(x)
+            self.placeCells.tuneCells(xEval)
 
         with torch.no_grad():
             noGradLatentState = torch.Tensor(x)
