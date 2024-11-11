@@ -3,7 +3,7 @@ import torch.nn as nn
 import torch
 
 from place_cells import PlaceCells
-from resnet import ResNet, ResBlock
+from .resnet import ResNet, ResBlock
 
 torch.manual_seed(0)
 
