@@ -32,12 +32,17 @@ class PlaceCellResNet(ResNet):
     ):
         super().__init__(game, num_resBlocks, num_hidden, device)
 
+        self.backBone = nn.ModuleList(
+            [ResBlock(num_hidden) for i in range(num_resBlocks)]
+            + [nn.BatchNorm2d(num_hidden)]
+        )
+
         self.placeCells = PlaceCells(
             numCells,
             cellDim,
             field,
             cellLearningRate,
-            torch.randn(numCells, cellDim) * 2.5 + 7.5,
+            torch.randn(numCells, cellDim),
         )
 
         self.placeCellsHead = nn.Sequential(
