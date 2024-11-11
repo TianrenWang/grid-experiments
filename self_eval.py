@@ -5,7 +5,7 @@ import csv
 import uuid
 
 from connect4 import ConnectFour
-from model import ResNet
+from models import ResNet
 from mcts import MCTS
 from device import getTorchDevice
 

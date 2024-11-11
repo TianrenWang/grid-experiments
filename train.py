@@ -2,7 +2,7 @@ import torch
 import os
 
 from connect4 import ConnectFour
-from model import ResNet, PlaceCellResNet
+from models import ResNet, PlaceCellResNet  # noqa: F401
 from alphazero import AlphaZeroParallel
 from device import getTorchDevice
 
@@ -19,7 +19,7 @@ if __name__ == "__main__":
     args = {
         "C": 2,
         "num_searches": 600,
-        "num_iterations": 8,
+        "num_iterations": 15,
         "num_selfPlay_iterations": 500,
         "num_parallel_games": 100,
         "num_epochs": 16,
