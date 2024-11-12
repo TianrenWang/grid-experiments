@@ -146,11 +146,6 @@ class AlphaZeroParallel:
                 print(f"CURRENT EPOCH OUT OF {self.args['num_epochs']}:", epoch)
                 self.train(memory)
 
-            if isinstance(self.model, PlaceCellResNet):
-                print("Cell Firing Frequency")
-                print(self.model.placeCells.fireFrequency)
-                self.model.placeCells.resetFireFrequency()
-
             folderPath = f"results/{experimentName}/version_{iteration}"
             if not os.path.exists(folderPath):
                 os.makedirs(folderPath)

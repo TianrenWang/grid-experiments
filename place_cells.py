@@ -74,6 +74,3 @@ class PlaceCells(nn.Module):
         bestMatchUnit = torch.flatten(torch.argmax(bestMatchUnit, 1))
         bestMatchVectors = torch.index_select(self.placeCells, 0, bestMatchUnit)
         return torch.sum(torch.abs(states - bestMatchVectors))
-
-    def resetFireFrequency(self):
-        self.fireFrequency.data.copy_(torch.zeros(self.numCells))
