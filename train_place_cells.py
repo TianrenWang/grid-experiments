@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import uuid
-from place_cells import PlaceCells
+from models import PlaceCells
 from self_eval import saveGameData
 from device import getTorchDevice
 
