@@ -21,8 +21,9 @@ class PlaceCells(nn.Module):
         self.fieldSize = fieldSize
         self.register_buffer("placeCells", cellPositions.to(getTorchDevice()))
         # self.relocationThreshold = relocationThreshold
-        # self.fireFrequency = nn.Parameter(
-        #     torch.zeros(numCells), requires_grad=False)
+        self.fireFrequency = nn.Parameter(
+            torch.zeros(numCells, dtype=torch.int16), requires_grad=False
+        ).to(getTorchDevice())
 
     def forward(self, x):
         states = torch.reshape(x.to(getTorchDevice()), (-1, self.cellDim))
@@ -31,11 +32,23 @@ class PlaceCells(nn.Module):
         unnormalized_activations = -dists_squared / (2 * self.fieldSize**2)
         return torch.nn.functional.softmax(unnormalized_activations, dim=1)
 
-    def tuneCells(self, states: torch.Tensor):
+    def tuneCells(self, states: torch.Tensor, droprate: float = 0):
         states = torch.reshape(states.to(getTorchDevice()), (-1, self.cellDim))
-        bestMatchUnit = torch.matmul(states, self.placeCells.T)
+        cellMask = torch.where(
+            torch.rand(
+                self.numCells,
+                1,
+                device=getTorchDevice(),
+                dtype=torch.float32,
+            )
+            > droprate,
+            1,
+            0,
+        )
+        droppedCells = self.placeCells * cellMask
+        bestMatchUnit = torch.matmul(states, droppedCells.T)
         bestMatchUnit = torch.flatten(torch.argmax(bestMatchUnit, 1))
-        # firingCounts = torch.bincount(bestMatchUnit, minlength=self.numCells)
+        firingCounts = torch.bincount(bestMatchUnit, minlength=self.numCells)
         bestMatchVectors = torch.index_select(self.placeCells, 0, bestMatchUnit)
         distances = states - bestMatchVectors
         placeCellUpdates = torch.zeros(self.numCells, self.cellDim).to(getTorchDevice())
@@ -47,7 +60,7 @@ class PlaceCells(nn.Module):
         ).to(getTorchDevice())
 
         with torch.no_grad():
-            # self.fireFrequency.data.copy_(self.fireFrequency + firingCounts)
+            self.fireFrequency.data.copy_(self.fireFrequency + firingCounts)
             newPlaceCells = self.placeCells + placeCellUpdates * self.learningRate
             self.placeCells = newPlaceCells.to(getTorchDevice())
 

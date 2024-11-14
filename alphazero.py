@@ -140,6 +140,24 @@ class AlphaZeroParallel:
                 )
                 memory += self.selfPlay()
 
+            print(datetime.now())
+            print("ALIGNING Place Cells' distribution")
+            if isinstance(self.model, PlaceCellResNet):
+                for _ in range(self.args["num_cell_alignments"]):
+                    random.shuffle(memory)
+                    for batchIdx in range(0, len(memory), self.args["batch_size"]):
+                        sample = memory[
+                            batchIdx : min(
+                                len(memory) - 1, batchIdx + self.args["batch_size"]
+                            )
+                        ]
+                        state, _, _ = zip(*sample)
+                        state = np.array(state)
+                        state = torch.tensor(
+                            state, dtype=torch.float32, device=self.model.device
+                        )
+                        self.model(state, 0.9)
+
             self.model.train()
             print(datetime.now())
             for epoch in range(self.args["num_epochs"]):
