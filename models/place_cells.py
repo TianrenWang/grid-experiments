@@ -20,10 +20,11 @@ class PlaceCells(nn.Module):
         self.learningRate = learningRate
         self.fieldSize = fieldSize
         self.register_buffer("placeCells", cellPositions.to(getTorchDevice()))
-        # self.relocationThreshold = relocationThreshold
-        self.fireFrequency = nn.Parameter(
-            torch.zeros(numCells, dtype=torch.int16), requires_grad=False
-        ).to(getTorchDevice())
+        self.relocationThreshold = relocationThreshold
+        self.register_buffer(
+            "fireFrequency",
+            torch.zeros(numCells, dtype=torch.int16).to(getTorchDevice()),
+        )
 
     def forward(self, x):
         states = torch.reshape(x.to(getTorchDevice()), (-1, self.cellDim))
@@ -50,26 +51,21 @@ class PlaceCells(nn.Module):
         bestMatchUnit = torch.flatten(torch.argmax(bestMatchUnit, 1))
         firingCounts = torch.bincount(bestMatchUnit, minlength=self.numCells)
         bestMatchVectors = torch.index_select(self.placeCells, 0, bestMatchUnit)
-        distances = states - bestMatchVectors
+        displacements = states - bestMatchVectors
         placeCellUpdates = torch.zeros(self.numCells, self.cellDim).to(getTorchDevice())
         placeCellUpdates = torch.scatter_add(
             placeCellUpdates,
             0,
-            bestMatchUnit.unsqueeze(1).expand_as(distances),
-            distances,
+            bestMatchUnit.unsqueeze(1).expand_as(displacements),
+            displacements,
         ).to(getTorchDevice())
 
         with torch.no_grad():
-            self.fireFrequency.data.copy_(self.fireFrequency + firingCounts)
+            self.fireFrequency = self.fireFrequency + firingCounts
             newPlaceCells = self.placeCells + placeCellUpdates * self.learningRate
             self.placeCells = newPlaceCells.to(getTorchDevice())
 
-    """
-    Practically, this function is useless because all place cells are visited at
-    very similar frequencies. Not even a magnitude of difference.
-    """
-
-    def recalibrate(self):
+    def calibrate(self):
         mostVisitedIndex = torch.argmax(self.fireFrequency).item()
         leastVisitedIndex = torch.argmin(self.fireFrequency).item()
         mostVisitedCount = self.fireFrequency[mostVisitedIndex].item()
@@ -80,6 +76,9 @@ class PlaceCells(nn.Module):
         ):
             with torch.no_grad():
                 self.placeCells[leastVisitedIndex] = self.placeCells[mostVisitedIndex]
+                halfFrequency = mostVisitedCount / 2
+                self.fireFrequency[leastVisitedIndex] = halfFrequency
+                self.fireFrequency[mostVisitedIndex] = halfFrequency
 
     def getTotalDistance(self, states: torch.Tensor):
         bestMatchUnit = torch.matmul(states, self.placeCells.T)

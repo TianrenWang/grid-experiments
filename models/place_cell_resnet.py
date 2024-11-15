@@ -88,6 +88,7 @@ class PlaceCellResNet(ResNet):
             x = resBlock(x)
         if self.training:
             self.placeCells.tuneCells(x, dropRate)
+            self.placeCells.calibrate()
 
         with torch.no_grad():
             noGradLatentState = torch.Tensor(x)
