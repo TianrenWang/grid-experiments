@@ -12,7 +12,7 @@ class PlaceCells(nn.Module):
         fieldSize: float,
         learningRate: float,
         cellPositions: torch.Tensor,
-        relocationThreshold: int = 200,
+        relocationThreshold: int = 100,
     ):
         super().__init__()
         self.numCells = numCells
@@ -22,7 +22,11 @@ class PlaceCells(nn.Module):
         self.register_buffer("placeCells", cellPositions.to(getTorchDevice()))
         self.relocationThreshold = relocationThreshold
         self.register_buffer(
-            "fireFrequency",
+            "learningFrequency",
+            torch.zeros(numCells, dtype=torch.int16).to(getTorchDevice()),
+        )
+        self.register_buffer(
+            "coverageFrequency",
             torch.zeros(numCells, dtype=torch.int16).to(getTorchDevice()),
         )
 
@@ -33,7 +37,7 @@ class PlaceCells(nn.Module):
         unnormalized_activations = -dists_squared / (2 * self.fieldSize**2)
         return torch.nn.functional.softmax(unnormalized_activations, dim=1)
 
-    def tuneCells(self, states: torch.Tensor, droprate: float = 0):
+    def learn(self, states: torch.Tensor, droprate: float = 0):
         states = torch.reshape(states.to(getTorchDevice()), (-1, self.cellDim))
         cellMask = torch.where(
             torch.rand(
@@ -49,7 +53,6 @@ class PlaceCells(nn.Module):
         droppedCells = self.placeCells * cellMask
         bestMatchUnit = torch.matmul(states, droppedCells.T)
         bestMatchUnit = torch.flatten(torch.argmax(bestMatchUnit, 1))
-        firingCounts = torch.bincount(bestMatchUnit, minlength=self.numCells)
         bestMatchVectors = torch.index_select(self.placeCells, 0, bestMatchUnit)
         displacements = states - bestMatchVectors
         placeCellUpdates = torch.zeros(self.numCells, self.cellDim).to(getTorchDevice())
@@ -60,8 +63,21 @@ class PlaceCells(nn.Module):
             displacements,
         ).to(getTorchDevice())
 
+        withinField = torch.where(
+            torch.sum(torch.abs(displacements), 1) < self.fieldSize,
+            1,
+            0,
+        )
+        learningCounts = torch.bincount(
+            bestMatchUnit, minlength=self.numCells, weights=(1 - withinField)
+        )
+        coverageCounts = torch.bincount(
+            bestMatchUnit, minlength=self.numCells, weights=withinField
+        )
+
         with torch.no_grad():
-            self.fireFrequency = self.fireFrequency + firingCounts
+            self.learningFrequency = self.learningFrequency + learningCounts
+            self.coverageFrequency = self.coverageFrequency + coverageCounts
             newPlaceCells = self.placeCells + placeCellUpdates * self.learningRate
             self.placeCells = newPlaceCells.to(getTorchDevice())
 
@@ -85,3 +101,11 @@ class PlaceCells(nn.Module):
         bestMatchUnit = torch.flatten(torch.argmax(bestMatchUnit, 1))
         bestMatchVectors = torch.index_select(self.placeCells, 0, bestMatchUnit)
         return torch.sum(torch.abs(states - bestMatchVectors))
+
+    def resetFireFrequency(self):
+        self.learningFrequency = torch.zeros(self.numCells, dtype=torch.int16).to(
+            getTorchDevice()
+        )
+        self.coverageFrequency = torch.zeros(self.numCells, dtype=torch.int16).to(
+            getTorchDevice()
+        )

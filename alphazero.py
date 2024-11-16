@@ -7,6 +7,7 @@ import os
 
 from mcts import MCTSParallel
 from self_eval import testAgentVSAgent, Agent
+from models import PlaceCellResNet
 
 
 class AlphaZeroParallel:
@@ -159,6 +160,8 @@ class AlphaZeroParallel:
 
             self.model.train()
             print(datetime.now())
+            if isinstance(self.model, PlaceCellResNet):
+                self.model.placeCells.resetFireFrequency()
             for epoch in range(self.args["num_epochs"]):
                 print(f"CURRENT EPOCH OUT OF {self.args['num_epochs']}:", epoch)
                 self.train(memory)

@@ -5,7 +5,7 @@ import csv
 import uuid
 
 from connect4 import ConnectFour
-from models import ResNet
+from models import ResNet, PlaceCellResNet
 from mcts import MCTS
 from device import getTorchDevice
 
@@ -175,7 +175,8 @@ def saveGameData(
 
 
 if __name__ == "__main__":
-    model = ResNet(game, 9, 128, getTorchDevice())
+    # model = ResNet(game, 9, 128, getTorchDevice())
+    model = PlaceCellResNet(game, 9, 128, 256, 5376, 100, 0.01, getTorchDevice())
     agent = Agent("control", 13, model, 0.5, True)
     states, stateLabels = testAgentVSAgent(
         agent, numberOfGamesToPlay=400, removeDuplicates=True
