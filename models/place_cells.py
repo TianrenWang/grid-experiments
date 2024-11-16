@@ -69,10 +69,12 @@ class PlaceCells(nn.Module):
             0,
         )
         learningCounts = torch.bincount(
-            bestMatchUnit, minlength=self.numCells, weights=(1 - withinField)
+            bestMatchUnit.to(torch.int32),
+            minlength=self.numCells,
+            weights=(1 - withinField),
         )
         coverageCounts = torch.bincount(
-            bestMatchUnit, minlength=self.numCells, weights=withinField
+            bestMatchUnit.to(torch.int32), minlength=self.numCells, weights=withinField
         )
 
         with torch.no_grad():
