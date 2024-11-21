@@ -3,6 +3,7 @@ import numpy as np
 import os
 import csv
 import uuid
+import shutil
 
 from connect4 import ConnectFour
 from models import ResNet, PlaceCellResNet
@@ -153,6 +154,8 @@ def saveGameData(
     columnNames=["move", "progress", "ID", "randomness", "outcome", "first"],
 ):
     folder_path = "data/" + dataName
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
     os.makedirs(folder_path, exist_ok=True)
     with open(folder_path + "/states.tsv", "a", newline="") as file:
         writer = csv.writer(file, delimiter="\t")
