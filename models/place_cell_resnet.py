@@ -82,13 +82,12 @@ class PlaceCellResNet(ResNet):
 
         self.to(device)
 
-    def forward(self, x, dropRate: float = 0):
+    def forward(self, x):
         x = self.startBlock(x)
         for resBlock in self.backBone:
             x = resBlock(x)
         if self.training:
-            self.placeCells.learn(x, dropRate)
-            # self.placeCells.calibrate()
+            self.placeCells.learn(x)
 
         with torch.no_grad():
             noGradLatentState = torch.Tensor(x)

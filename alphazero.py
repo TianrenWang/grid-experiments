@@ -117,6 +117,37 @@ class AlphaZeroParallel:
             loss.backward()
             self.optimizer.step()
 
+    def _getLatents(self, memory):
+        if not isinstance(self.model, PlaceCellResNet):
+            raise Exception(
+                "Cannot use this function if model does not have place cell."
+            )
+        latents = []
+        for batchIdx in range(0, len(memory), self.args["batch_size"]):
+            sample = memory[
+                batchIdx : min(len(memory) - 1, batchIdx + self.args["batch_size"])
+            ]
+            state, _, _ = zip(*sample)
+            state = np.array(state)
+            state = torch.tensor(state, dtype=torch.float32, device=self.model.device)
+            latents.append(self.model(state)[-1])
+
+        return torch.concat(latents)
+
+    def _countPlaceCellFrequencies(self, latents: torch.Tensor):
+        if not isinstance(self.model, PlaceCellResNet):
+            raise Exception(
+                "Cannot use this function if model does not have place cell."
+            )
+
+        batchSize = 1000
+        for i in range(0, len(latents), batchSize):
+            actualBatchSize = (
+                batchSize if i + batchSize < len(latents) else len(latents) - i
+            )
+            batch = latents[i : i + actualBatchSize]
+            self.model.placeCells.countFrequencies(batch)
+
     def learn(self):
         startingPoint = 0
         experimentName = self.args["exp_name"]
@@ -140,23 +171,39 @@ class AlphaZeroParallel:
                 )
                 memory += self.selfPlay()
 
-            # print(datetime.now())
-            # print("ALIGNING Place Cells' distribution")
-            # if isinstance(self.model, PlaceCellResNet):
-            #     for _ in range(self.args["num_cell_alignments"]):
-            #         random.shuffle(memory)
-            #         for batchIdx in range(0, len(memory), self.args["batch_size"]):
-            #             sample = memory[
-            #                 batchIdx : min(
-            #                     len(memory) - 1, batchIdx + self.args["batch_size"]
-            #                 )
-            #             ]
-            #             state, _, _ = zip(*sample)
-            #             state = np.array(state)
-            #             state = torch.tensor(
-            #                 state, dtype=torch.float32, device=self.model.device
-            #             )
-            #             self.model(state, 0.9)
+            if isinstance(self.model, PlaceCellResNet):
+                print(datetime.now())
+                print("ALIGNING Place Cells' distribution")
+                latents = self._getLatents(memory)
+
+                def getShuffled(latents: torch.Tensor):
+                    permutation = torch.randperm(latents.size(0))
+                    return latents[permutation]
+
+                for _ in range(self.args["num_cell_alignments"]):
+                    self.model.placeCells.resetFireFrequency()
+                    self._countPlaceCellFrequencies(latents)
+                    latents = getShuffled(latents)
+                    for batchIdx in range(0, len(latents), self.args["batch_size"]):
+                        batch = latents[
+                            batchIdx : min(
+                                len(latents) - 1, batchIdx + self.args["batch_size"]
+                            )
+                        ]
+                        self.model.placeCells.learn(batch, True)
+
+                    for _ in range(20):
+                        self.model.placeCells.calibrate()
+
+                for batchIdx in range(10):
+                    latents = getShuffled(latents)
+                    for batchIdx in range(0, len(latents), self.args["batch_size"]):
+                        batch = latents[
+                            batchIdx : min(
+                                len(latents) - 1, batchIdx + self.args["batch_size"]
+                            )
+                        ]
+                        self.model.placeCells.learn(batch)
 
             self.model.train()
             print(datetime.now())
@@ -166,6 +213,7 @@ class AlphaZeroParallel:
                 print(f"CURRENT EPOCH OUT OF {self.args['num_epochs']}:", epoch)
                 self.train(memory)
 
+            print(datetime.now())
             folderPath = f"results/{experimentName}/version_{iteration}"
             if not os.path.exists(folderPath):
                 os.makedirs(folderPath)
