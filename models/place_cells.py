@@ -84,7 +84,8 @@ class PlaceCells(nn.Module):
         ):
             with torch.no_grad():
                 self.placeCells[leastUsedIndex] = (
-                    self.placeCells[mostVisitedIndex] + torch.randn(self.cellDim) * 1e-7
+                    self.placeCells[mostVisitedIndex]
+                    + torch.randn(self.cellDim, device=getTorchDevice()) * 1e-7
                 )
                 halfLearningFrequency = mostVisitedFreqCount / 2
                 self.learningFrequency[leastUsedIndex] = halfLearningFrequency
