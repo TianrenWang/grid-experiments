@@ -130,7 +130,11 @@ class AlphaZeroParallel:
             state, _, _ = zip(*sample)
             state = np.array(state)
             state = torch.tensor(state, dtype=torch.float32, device=self.model.device)
-            latents.append(self.model(state)[-1])
+            latents.append(
+                torch.reshape(
+                    self.model(state)[-1], (-1, self.model.placeCells.cellDim)
+                )
+            )
 
         return torch.concat(latents)
 
@@ -175,6 +179,9 @@ class AlphaZeroParallel:
                 print(datetime.now())
                 print("ALIGNING Place Cells' distribution")
                 latents = self._getLatents(memory)
+                print(
+                    f"Distances before alignment: {self.model.placeCells.getTotalDistance(latents) / len(latents)}"
+                )
 
                 def getShuffled(latents: torch.Tensor):
                     permutation = torch.randperm(latents.size(0))
@@ -204,12 +211,15 @@ class AlphaZeroParallel:
                             )
                         ]
                         self.model.placeCells.learn(batch)
+                print(
+                    f"Distances after alignment: {self.model.placeCells.getTotalDistance(latents) / len(latents)}"
+                )
 
             self.model.train()
             print(datetime.now())
-            if isinstance(self.model, PlaceCellResNet):
-                self.model.placeCells.resetFireFrequency()
             for epoch in range(self.args["num_epochs"]):
+                if isinstance(self.model, PlaceCellResNet):
+                    self.model.placeCells.resetFireFrequency()
                 print(f"CURRENT EPOCH OUT OF {self.args['num_epochs']}:", epoch)
                 self.train(memory)
 

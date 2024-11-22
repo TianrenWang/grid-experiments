@@ -65,6 +65,7 @@ class PlaceCells(nn.Module):
         ).to(getTorchDevice())
 
         with torch.no_grad():
+            self._updateFrequencies(displacements, bestMatchUnit)
             newPlaceCells = self.placeCells + placeCellUpdates * (
                 1 if useMean else self.learningRate
             )
