@@ -4,6 +4,7 @@ import random
 import torch
 from datetime import datetime
 import os
+import pickle
 
 from mcts import MCTSParallel
 from self_eval import testAgentVSAgent, Agent
@@ -160,20 +161,29 @@ class AlphaZeroParallel:
         for iteration in range(startingPoint, self.args["num_iterations"]):
             print(datetime.now())
             print(f"CURRENT ITERATION OUT OF {self.args['num_iterations']}:", iteration)
-            memory = []
+            memory = None
+            if memoryVersion := self.args["memory"]:
+                with open(
+                    f"results/{experimentName}/version_{memoryVersion}/memory.pkl",
+                    "rb",
+                ) as file:
+                    memory = pickle.load(file)
+            if not memory:
+                memory = []
 
-            self.model.eval()
-            parallelIterations = (
-                self.args["num_selfPlay_iterations"] // self.args["num_parallel_games"]
-            )
-
-            print(datetime.now())
-            for selfPlay_iteration in range(parallelIterations):
-                print(
-                    f"CURRENT SELF-PLAY ITERATION OUT OF {parallelIterations}:",
-                    selfPlay_iteration,
+                self.model.eval()
+                parallelIterations = (
+                    self.args["num_selfPlay_iterations"]
+                    // self.args["num_parallel_games"]
                 )
-                memory += self.selfPlay()
+
+                print(datetime.now())
+                for selfPlay_iteration in range(parallelIterations):
+                    print(
+                        f"CURRENT SELF-PLAY ITERATION OUT OF {parallelIterations}:",
+                        selfPlay_iteration,
+                    )
+                    memory += self.selfPlay()
 
             if isinstance(self.model, PlaceCellResNet):
                 print(datetime.now())
@@ -229,6 +239,8 @@ class AlphaZeroParallel:
                 os.makedirs(folderPath)
             torch.save(self.model.state_dict(), folderPath + "/model.pt")
             torch.save(self.optimizer.state_dict(), folderPath + "/optimizer.pt")
+            with open(folderPath + "/memory.pkl", "wb") as file:
+                pickle.dump(memory, file)
 
             testAgentVSAgent(
                 Agent(experimentName, iteration, self.model), numberOfGamesToPlay=400

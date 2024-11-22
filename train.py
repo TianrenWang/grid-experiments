@@ -30,6 +30,7 @@ if __name__ == "__main__":
         "dirichlet_alpha": 0.3,
         "prev_version": previousVersion,
         "exp_name": experimentName,
+        "memory": None,
     }
 
     modelPath = f"results/{experimentName}/version_{previousVersion}"
