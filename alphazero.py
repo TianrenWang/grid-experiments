@@ -188,6 +188,7 @@ class AlphaZeroParallel:
             if isinstance(self.model, PlaceCellResNet):
                 print(datetime.now())
                 print("ALIGNING Place Cells' distribution")
+                self.model.eval()
                 latents = self._getLatents(memory)
                 print(
                     f"Distances before alignment: {self.model.placeCells.getTotalDistance(latents) / len(latents)}"
@@ -197,27 +198,13 @@ class AlphaZeroParallel:
                     permutation = torch.randperm(latents.size(0))
                     return latents[permutation]
 
-                for _ in range(self.args["num_cell_alignments"]):
-                    self.model.placeCells.resetFireFrequency()
-                    self._countPlaceCellFrequencies(latents)
+                alignmentBatchSize = self.args["num_selfPlay_iterations"] * 2
+                for batchIdx in range(100):
                     latents = getShuffled(latents)
-                    for batchIdx in range(0, len(latents), self.args["batch_size"]):
+                    for batchIdx in range(0, len(latents), alignmentBatchSize):
                         batch = latents[
                             batchIdx : min(
-                                len(latents) - 1, batchIdx + self.args["batch_size"]
-                            )
-                        ]
-                        self.model.placeCells.learn(batch, True)
-
-                    for _ in range(20):
-                        self.model.placeCells.calibrate()
-
-                for batchIdx in range(10):
-                    latents = getShuffled(latents)
-                    for batchIdx in range(0, len(latents), self.args["batch_size"]):
-                        batch = latents[
-                            batchIdx : min(
-                                len(latents) - 1, batchIdx + self.args["batch_size"]
+                                len(latents) - 1, batchIdx + alignmentBatchSize
                             )
                         ]
                         self.model.placeCells.learn(batch)

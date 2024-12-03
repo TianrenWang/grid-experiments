@@ -19,12 +19,10 @@ class Agent:
         expName: str,
         version: int,
         model: torch.nn.Module,
-        randomness: float = 0.1,
-        loadModel: bool = False,
+        loadModel: bool = True,
     ):
         self.expName = expName
         self.version = version
-        self.randomness = randomness
         self.model = model
         if loadModel:
             self.modelPath = f"{expName}/version_{version}"
@@ -40,17 +38,22 @@ class Agent:
         self.args = {
             "C": 2,
             "num_searches": 0,
-            "dirichlet_epsilon": randomness,
+            "dirichlet_epsilon": 0,
             "dirichlet_alpha": 0.3,
         }
         self.mcts = MCTS(game, self.args, self.model)
 
 
+def getFinalizedAction(probs: np.ndarray, temperature: float):
+    temperature_action_probs = probs ** (1 / temperature)
+    temperature_action_probs /= temperature_action_probs.sum()
+    return np.random.choice(game.action_size, p=temperature_action_probs)
+
+
 def testAgentVSAgent(
     agent1: Agent,
-    agent2: Agent = Agent(
-        "control", 13, ResNet(game, 9, 128, getTorchDevice()), 0, True
-    ),
+    agent2: Agent = Agent("control", 13, ResNet(game, 9, 128, getTorchDevice())),
+    temperature: float = 1,
     numberOfGamesToPlay: int = 25,
     removeDuplicates: bool = False,
 ):
@@ -83,7 +86,7 @@ def testAgentVSAgent(
             if player == collectorPlayer:
                 neutral_state = game.change_perspective(state, player)
                 mcts_probs, latentState = agent1.mcts.search(neutral_state)
-                action = np.argmax(mcts_probs)
+                action = getFinalizedAction(mcts_probs, temperature)
                 latentStatesOfCurrentGame.append(latentState)
                 boardStatesOfCurrentGame.append(state)
                 playFirst.append(playFirstCurrentGame)
@@ -95,7 +98,7 @@ def testAgentVSAgent(
             else:
                 neutral_state = game.change_perspective(state, player)
                 mcts_probs, latentState = agent2.mcts.search(neutral_state)
-                action = np.argmax(mcts_probs)
+                action = getFinalizedAction(mcts_probs, temperature)
 
             state = game.get_next_state(state, action, player)
 
@@ -180,7 +183,7 @@ def saveGameData(
 if __name__ == "__main__":
     # model = ResNet(game, 9, 128, getTorchDevice())
     model = PlaceCellResNet(game, 9, 128, 256, 5376, 100, 0.01, getTorchDevice())
-    agent = Agent("control", 13, model, 0.5, True)
+    agent = Agent("control", 13, model)
     states, stateLabels = testAgentVSAgent(
         agent, numberOfGamesToPlay=400, removeDuplicates=True
     )
