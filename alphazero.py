@@ -198,13 +198,12 @@ class AlphaZeroParallel:
                     permutation = torch.randperm(latents.size(0))
                     return latents[permutation]
 
-                alignmentBatchSize = self.args["num_selfPlay_iterations"] * 2
                 for batchIdx in range(100):
                     latents = getShuffled(latents)
-                    for batchIdx in range(0, len(latents), alignmentBatchSize):
+                    for batchIdx in range(0, len(latents), self.args["batch_size"]):
                         batch = latents[
                             batchIdx : min(
-                                len(latents) - 1, batchIdx + alignmentBatchSize
+                                len(latents) - 1, batchIdx + self.args["batch_size"]
                             )
                         ]
                         self.model.placeCells.learn(batch)
