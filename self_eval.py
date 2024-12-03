@@ -130,7 +130,7 @@ def testAgentVSAgent(
                             f"({i})",
                             f"%{percentComplete}%",
                             str(gameId)[:8],
-                            agent1.randomness,
+                            temperature,
                             outcome,
                             playFirst[i],
                         ]
