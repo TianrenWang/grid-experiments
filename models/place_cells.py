@@ -78,11 +78,7 @@ class PlaceCells(nn.Module):
         mostVisitedFreqCount = self.learningFrequency[mostVisitedIndex].item()
         mostVisitedCovCount = self.coverageFrequency[mostVisitedIndex].item()
         leastUsedCount = cellUsefulness[leastUsedIndex].item()
-        if (
-            self.coverageFrequency[leastUsedIndex].item() == 0
-            and leastUsedCount * self.relocationThreshold < mostVisitedFreqCount
-            and mostVisitedFreqCount > self.relocationThreshold
-        ):
+        if leastUsedCount == 0:
             with torch.no_grad():
                 self.placeCells[leastUsedIndex] = (
                     self.placeCells[mostVisitedIndex]

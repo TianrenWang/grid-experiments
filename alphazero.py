@@ -198,6 +198,22 @@ class AlphaZeroParallel:
                     permutation = torch.randperm(latents.size(0))
                     return latents[permutation]
 
+                for _ in range(self.args["num_cell_alignments"]):
+                    self.model.placeCells.resetFireFrequency()
+                    self._countPlaceCellFrequencies(latents)
+
+                    for _ in range(20):
+                        self.model.placeCells.calibrate()
+
+                    latents = getShuffled(latents)
+                    for batchIdx in range(0, len(latents), self.args["batch_size"]):
+                        batch = latents[
+                            batchIdx : min(
+                                len(latents) - 1, batchIdx + self.args["batch_size"]
+                            )
+                        ]
+                        self.model.placeCells.learn(batch)
+
                 for batchIdx in range(100):
                     latents = getShuffled(latents)
                     for batchIdx in range(0, len(latents), self.args["batch_size"]):
