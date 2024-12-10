@@ -5,6 +5,7 @@ import torch
 from datetime import datetime
 import os
 import pickle
+import math
 
 from mcts import MCTSParallel
 from self_eval import testAgentVSAgent, Agent
@@ -18,6 +19,55 @@ class AlphaZeroParallel:
         self.game = game
         self.args = args
         self.mcts = MCTSParallel(game, args, model)
+
+    def _negativeEntropyLoss(self, activations: torch.Tensor):
+        """
+        Compute the negative entropy loss for a batch of activation patterns.
+        Encourages activation pattern to be sharp for a few cells per state.
+
+        Args:
+            activations (torch.Tensor): The output of the softmax layer,
+                                        shape (batch_size, num_cells).
+        Returns:
+            torch.Tensor: The negative entropy loss.
+        """
+
+        if not isinstance(self.model, PlaceCellResNet):
+            raise Exception("Can only be used if model is a PlaceCellResNet")
+
+        epsilon = 1e-12
+        log_probs = torch.log(activations + epsilon)
+        entropy = -torch.sum(activations * log_probs) / activations.size(0)
+        return entropy
+
+    def _activationBiasLoss(self, activations: torch.Tensor):
+        """
+        Computes loss on how disproportionately a few cells fire across
+        a batch. Discourages over reliance on a firing of few cells.
+
+        Args:
+            activations (torch.Tensor): The output of the softmax layer,
+                                        shape (batch_size, num_cells).
+        Returns:
+            torch.Tensor: The activation bias loss.
+        """
+
+        if not isinstance(self.model, PlaceCellResNet):
+            raise Exception("Can only be used if model is a PlaceCellResNet")
+
+        totalActivationAcrossBatch = torch.sum(activations, dim=0)
+        biasAcrossBatch = torch.sqrt(torch.sum(totalActivationAcrossBatch**2))
+        batchSize = activations.size(0)
+        floorActivations = math.floor(batchSize / self.model.numCells)
+        ceilActivations = math.ceil(batchSize / self.model.numCells)
+        remainingActivations = batchSize % self.model.numCells
+        standardization = torch.sqrt(
+            torch.scalar_tensor(
+                remainingActivations * ceilActivations**2
+                + (batchSize - remainingActivations) * floorActivations**2
+            )
+        )
+        return torch.abs(biasAcrossBatch - standardization) / activations.size(0)
 
     def selfPlay(self):
         return_memory = []
@@ -78,38 +128,43 @@ class AlphaZeroParallel:
 
         return return_memory
 
+    def _processTrainingSamples(self, samples):
+        states, policy_targets, value_targets = zip(*samples)
+        states, policy_targets, value_targets = (
+            np.array(states),
+            np.array(policy_targets),
+            np.array(value_targets).reshape(-1, 1),
+        )
+        states = torch.tensor(states, dtype=torch.float32, device=self.model.device)
+        policy_targets = torch.tensor(
+            policy_targets, dtype=torch.float32, device=self.model.device
+        )
+        value_targets = torch.tensor(
+            value_targets, dtype=torch.float32, device=self.model.device
+        )
+        return states, policy_targets, value_targets
+
     def train(self, memory):
         random.shuffle(memory)
+        evaluationMemory = memory[:1024]
+        memory = memory[1024:]
         for batchIdx in range(0, len(memory), self.args["batch_size"]):
             # Change to memory[batchIdx:batchIdx+self.args['batch_size']] in case of an error
-            sample = memory[
+            samples = memory[
                 batchIdx : min(len(memory) - 1, batchIdx + self.args["batch_size"])
             ]
-            state, policy_targets, value_targets = zip(*sample)
-
-            state, policy_targets, value_targets = (
-                np.array(state),
-                np.array(policy_targets),
-                np.array(value_targets).reshape(-1, 1),
+            states, policy_targets, value_targets = self._processTrainingSamples(
+                samples
             )
-
-            state = torch.tensor(state, dtype=torch.float32, device=self.model.device)
-            policy_targets = torch.tensor(
-                policy_targets, dtype=torch.float32, device=self.model.device
-            )
-            value_targets = torch.tensor(
-                value_targets, dtype=torch.float32, device=self.model.device
-            )
-
             loss = 0
-            modelOutput = self.model(state)
-            if len(modelOutput) == 3:
-                out_policy, out_value, out_latent = modelOutput
-            else:
+            modelOutput = self.model(states)
+            if isinstance(self.model, PlaceCellResNet):
                 out_policy, out_value, out_place, out_latent = modelOutput
-                place_targets = self.model.placeCells(out_latent)
-                loss += F.cross_entropy(out_place, place_targets)
-
+                firingLoss = self._negativeEntropyLoss(out_place)
+                biasLoss = self._activationBiasLoss(out_place)
+                loss += firingLoss + biasLoss
+            else:
+                out_policy, out_value, out_latent = modelOutput
             policy_loss = F.cross_entropy(out_policy, policy_targets)
             value_loss = F.mse_loss(out_value, value_targets)
             loss += policy_loss + value_loss
@@ -117,6 +172,16 @@ class AlphaZeroParallel:
             self.optimizer.zero_grad()
             loss.backward()
             self.optimizer.step()
+
+        states, _, __ = self._processTrainingSamples(evaluationMemory)
+        modelOutput = self.model(states)
+        if isinstance(self.model, PlaceCellResNet):
+            _, __, out_place, ___ = modelOutput
+            firingLoss = self._negativeEntropyLoss(out_place)
+            biasLoss = self._activationBiasLoss(out_place)
+            print("Place Cell Evaluation:")
+            print("Firing Loss: ", firingLoss.item())
+            print("Bias Loss: ", biasLoss.item())
 
     def _getLatents(self, memory):
         if not isinstance(self.model, PlaceCellResNet):
@@ -185,7 +250,7 @@ class AlphaZeroParallel:
                     )
                     memory += self.selfPlay()
 
-            if isinstance(self.model, PlaceCellResNet):
+            if isinstance(self.model, PlaceCellResNet) and False:
                 print(datetime.now())
                 print("ALIGNING Place Cells' distribution")
                 self.model.eval()
@@ -230,8 +295,6 @@ class AlphaZeroParallel:
             self.model.train()
             print(datetime.now())
             for epoch in range(self.args["num_epochs"]):
-                if isinstance(self.model, PlaceCellResNet):
-                    self.model.placeCells.resetFireFrequency()
                 print(f"CURRENT EPOCH OUT OF {self.args['num_epochs']}:", epoch)
                 self.train(memory)
 

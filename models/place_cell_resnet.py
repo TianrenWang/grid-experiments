@@ -2,7 +2,6 @@ import torch.nn.functional as F
 import torch.nn as nn
 import torch
 
-from .place_cells import PlaceCells
 from .resnet import ResNet, ResBlock
 
 torch.manual_seed(0)
@@ -31,22 +30,19 @@ class PlaceCellResNet(ResNet):
         device,
     ):
         super().__init__(game, num_resBlocks, num_hidden, device)
-
-        self.placeCells = PlaceCells(
-            numCells,
-            cellDim,
-            field,
-            cellLearningRate,
-            torch.randn(numCells, cellDim) * 2.5 + 7.5,
-        )
+        self.numCells = numCells
+        self.latentNorm = nn.BatchNorm2d(num_hidden)
 
         self.placeCellsHead = nn.Sequential(
-            *nn.ModuleList([ResBlock(num_hidden) for i in range(3)]),
+            *nn.ModuleList([ResBlock(num_hidden) for i in range(2)]),
             nn.Conv2d(num_hidden, 32, kernel_size=3, padding=1),
             nn.BatchNorm2d(32),
             nn.ReLU(),
+            nn.Conv2d(32, 8, kernel_size=3, padding=1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(),
             nn.Flatten(),
-            nn.Linear(32 * game.row_count * game.column_count, numCells),
+            nn.Linear(8 * game.row_count * game.column_count, numCells),
         )
 
         self.preValueHead = nn.Sequential(
@@ -86,17 +82,8 @@ class PlaceCellResNet(ResNet):
         x = self.startBlock(x)
         for resBlock in self.backBone:
             x = resBlock(x)
-        if self.training:
-            self.placeCells.learn(x)
-
-        with torch.no_grad():
-            noGradLatentState = torch.Tensor(x)
-
-        place = self.placeCellsHead(noGradLatentState)
-
-        with torch.no_grad():
-            noGradPlace = torch.Tensor(place)
-
-        policy = self.policyHead(torch.concat([self.prePolicyHead(x), noGradPlace], 1))
-        value = self.valueHead(torch.concat([self.preValueHead(x), noGradPlace], 1))
-        return policy, value, place, noGradLatentState
+        x = self.latentNorm(x)
+        place = torch.nn.functional.softmax(self.placeCellsHead(x), dim=1)
+        policy = self.policyHead(torch.concat([self.prePolicyHead(x), place], 1))
+        value = self.valueHead(torch.concat([self.preValueHead(x), place], 1))
+        return policy, value, place, x
