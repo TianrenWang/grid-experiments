@@ -64,7 +64,7 @@ class AlphaZeroParallel:
         standardization = torch.sqrt(
             torch.scalar_tensor(
                 remainingActivations * ceilActivations**2
-                + (batchSize - remainingActivations) * floorActivations**2
+                + (self.model.numCells - remainingActivations) * floorActivations**2
             )
         )
         return torch.abs(biasAcrossBatch - standardization) / activations.size(0)
