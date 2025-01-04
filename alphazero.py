@@ -9,7 +9,7 @@ import pickle
 from mcts import MCTSParallel
 from self_eval import testAgentVSAgent, Agent
 from models import PlaceCellResNet
-from eval_place_cells import overlayCells
+from eval_place_cells import overlayCells  # noqa: F401
 
 
 class AlphaZeroParallel:
@@ -21,6 +21,17 @@ class AlphaZeroParallel:
         self.mcts = MCTSParallel(game, args, model)
 
     def selfPlay(self):
+        """
+        Creates a series of game memories using the following steps:
+        1. Create a bunch of games (SPGs) from the starting position
+        2. Put it through a while loop until all SPGs are processed (processed SPGs
+        are deleted from the list)
+        3. In each loop, perform a MCTS search on the current game positions, which
+        calculates a policy for each position, and advance the position based on that
+        policy
+        4. In each loop, identify the SPGs that reached their terminal states, record
+        their outcomes/policy/etc..and delete from list
+        """
         return_memory = []
         player = 1
         spGames = [SPG(self.game) for spg in range(self.args["num_parallel_games"])]
