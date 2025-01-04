@@ -57,6 +57,7 @@ def testAgentVSAgent(
     numberOfGamesToPlay: int = 25,
     removeDuplicates: bool = False,
 ):
+    global game
     print(
         f"Evaluating {agent1.expName} Version {agent1.version} VS {agent2.expName} Version {agent2.version}"
     )
@@ -68,8 +69,10 @@ def testAgentVSAgent(
     states = []
     stateLabels = []
     encounteredStates = set()
+    actionConfidence = []
 
     while numberOfGames < numberOfGamesToPlay:
+        currentGameConfidence = []
         state = game.get_initial_state()
         gameId = uuid.uuid4()
         collectorPlayer = 1
@@ -87,6 +90,7 @@ def testAgentVSAgent(
                 neutral_state = game.change_perspective(state, player)
                 mcts_probs, latentState = agent1.mcts.search(neutral_state)
                 action = getFinalizedAction(mcts_probs, temperature)
+                currentGameConfidence.append(mcts_probs[action])
                 latentStatesOfCurrentGame.append(latentState)
                 boardStatesOfCurrentGame.append(state)
                 playFirst.append(playFirstCurrentGame)
@@ -139,6 +143,7 @@ def testAgentVSAgent(
 
             player = game.get_opponent(player)
         numberOfGames += 1
+        actionConfidence.append(currentGameConfidence)
 
     print(
         f"{agent1.expName} Version {agent1.version} VS {agent2.expName} Version {agent2.version} wins/losses:",
@@ -146,6 +151,14 @@ def testAgentVSAgent(
         "/",
         str(losses),
     )
+
+    totalConfidence = 0
+    for game in actionConfidence:
+        totalGameConfidence = 0
+        for i in range(len(actionConfidence[0])):
+            totalGameConfidence += actionConfidence[0][i]
+        totalConfidence += totalGameConfidence / len(actionConfidence[0])
+    print(f"Average Confidence: {totalConfidence / len(actionConfidence)}")
 
     return states, stateLabels
 
