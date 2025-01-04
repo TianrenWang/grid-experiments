@@ -3,9 +3,10 @@ import numpy as np
 import os
 import csv
 import uuid
+import shutil
 
 from connect4 import ConnectFour
-from models import ResNet
+from models import ResNet, PlaceCellResNet
 from mcts import MCTS
 from device import getTorchDevice
 
@@ -18,12 +19,10 @@ class Agent:
         expName: str,
         version: int,
         model: torch.nn.Module,
-        randomness: float = 0.1,
-        loadModel: bool = False,
+        loadModel: bool = True,
     ):
         self.expName = expName
         self.version = version
-        self.randomness = randomness
         self.model = model
         if loadModel:
             self.modelPath = f"{expName}/version_{version}"
@@ -39,20 +38,26 @@ class Agent:
         self.args = {
             "C": 2,
             "num_searches": 0,
-            "dirichlet_epsilon": randomness,
+            "dirichlet_epsilon": 0,
             "dirichlet_alpha": 0.3,
         }
         self.mcts = MCTS(game, self.args, self.model)
 
 
+def getFinalizedAction(probs: np.ndarray, temperature: float):
+    temperature_action_probs = probs ** (1 / temperature)
+    temperature_action_probs /= temperature_action_probs.sum()
+    return np.random.choice(game.action_size, p=temperature_action_probs)
+
+
 def testAgentVSAgent(
     agent1: Agent,
-    agent2: Agent = Agent(
-        "control", 13, ResNet(game, 9, 128, getTorchDevice()), 0, True
-    ),
+    agent2: Agent = Agent("control", 13, ResNet(game, 9, 128, getTorchDevice())),
+    temperature: float = 1,
     numberOfGamesToPlay: int = 25,
     removeDuplicates: bool = False,
 ):
+    global game
     print(
         f"Evaluating {agent1.expName} Version {agent1.version} VS {agent2.expName} Version {agent2.version}"
     )
@@ -64,8 +69,10 @@ def testAgentVSAgent(
     states = []
     stateLabels = []
     encounteredStates = set()
+    actionConfidence = []
 
     while numberOfGames < numberOfGamesToPlay:
+        currentGameConfidence = []
         state = game.get_initial_state()
         gameId = uuid.uuid4()
         collectorPlayer = 1
@@ -82,7 +89,8 @@ def testAgentVSAgent(
             if player == collectorPlayer:
                 neutral_state = game.change_perspective(state, player)
                 mcts_probs, latentState = agent1.mcts.search(neutral_state)
-                action = np.argmax(mcts_probs)
+                action = getFinalizedAction(mcts_probs, temperature)
+                currentGameConfidence.append(mcts_probs[action])
                 latentStatesOfCurrentGame.append(latentState)
                 boardStatesOfCurrentGame.append(state)
                 playFirst.append(playFirstCurrentGame)
@@ -94,7 +102,7 @@ def testAgentVSAgent(
             else:
                 neutral_state = game.change_perspective(state, player)
                 mcts_probs, latentState = agent2.mcts.search(neutral_state)
-                action = np.argmax(mcts_probs)
+                action = getFinalizedAction(mcts_probs, temperature)
 
             state = game.get_next_state(state, action, player)
 
@@ -126,7 +134,7 @@ def testAgentVSAgent(
                             f"({i})",
                             f"%{percentComplete}%",
                             str(gameId)[:8],
-                            agent1.randomness,
+                            temperature,
                             outcome,
                             playFirst[i],
                         ]
@@ -135,6 +143,7 @@ def testAgentVSAgent(
 
             player = game.get_opponent(player)
         numberOfGames += 1
+        actionConfidence.append(currentGameConfidence)
 
     print(
         f"{agent1.expName} Version {agent1.version} VS {agent2.expName} Version {agent2.version} wins/losses:",
@@ -142,6 +151,14 @@ def testAgentVSAgent(
         "/",
         str(losses),
     )
+
+    totalConfidence = 0
+    for game in actionConfidence:
+        totalGameConfidence = 0
+        for i in range(len(actionConfidence[0])):
+            totalGameConfidence += actionConfidence[0][i]
+        totalConfidence += totalGameConfidence / len(actionConfidence[0])
+    print(f"Average Confidence: {totalConfidence / len(actionConfidence)}")
 
     return states, stateLabels
 
@@ -153,6 +170,8 @@ def saveGameData(
     columnNames=["move", "progress", "ID", "randomness", "outcome", "first"],
 ):
     folder_path = "data/" + dataName
+    if os.path.exists(folder_path):
+        shutil.rmtree(folder_path)
     os.makedirs(folder_path, exist_ok=True)
     with open(folder_path + "/states.tsv", "a", newline="") as file:
         writer = csv.writer(file, delimiter="\t")
@@ -175,8 +194,9 @@ def saveGameData(
 
 
 if __name__ == "__main__":
-    model = ResNet(game, 9, 128, getTorchDevice())
-    agent = Agent("control", 13, model, 0.5, True)
+    # model = ResNet(game, 9, 128, getTorchDevice())
+    model = PlaceCellResNet(game, 9, 128, 256, 5376, 100, 0.01, getTorchDevice())
+    agent = Agent("control", 13, model)
     states, stateLabels = testAgentVSAgent(
         agent, numberOfGamesToPlay=400, removeDuplicates=True
     )

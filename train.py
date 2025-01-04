@@ -23,12 +23,14 @@ if __name__ == "__main__":
         "num_selfPlay_iterations": 500,
         "num_parallel_games": 100,
         "num_epochs": 16,
+        "num_cell_alignments": 30,
         "batch_size": 128,
         "temperature": 1.25,
         "dirichlet_epsilon": 0.25,
         "dirichlet_alpha": 0.3,
         "prev_version": previousVersion,
         "exp_name": experimentName,
+        "memory": None,
     }
 
     modelPath = f"results/{experimentName}/version_{previousVersion}"

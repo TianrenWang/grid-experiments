@@ -2,8 +2,8 @@ import torch.nn.functional as F
 import torch.nn as nn
 import torch
 
-from place_cells import PlaceCells
-from resnet import ResNet, ResBlock
+from .place_cells import PlaceCells
+from .resnet import ResNet, ResBlock
 
 torch.manual_seed(0)
 
@@ -87,7 +87,7 @@ class PlaceCellResNet(ResNet):
         for resBlock in self.backBone:
             x = resBlock(x)
         if self.training:
-            self.placeCells.tuneCells(x)
+            self.placeCells.learn(x)
 
         with torch.no_grad():
             noGradLatentState = torch.Tensor(x)

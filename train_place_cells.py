@@ -1,7 +1,7 @@
 import numpy as np
 import torch
 import uuid
-from place_cells import PlaceCells
+from models import PlaceCells
 from self_eval import saveGameData
 from device import getTorchDevice
 
@@ -22,7 +22,7 @@ if __name__ == "__main__":
     iterations = 100
 
     print(
-        f"Starting distance: {placeCells.getTotalDistance(torch.tensor(data).to(torch.float).to(getTorchDevice()))}"
+        f"Starting distance: {placeCells.getTotalDistance(torch.tensor(data).to(torch.float).to(getTorchDevice())) / len(data)}"
     )
 
     for i in range(iterations):
@@ -32,12 +32,10 @@ if __name__ == "__main__":
                 j + batchSize if j + batchSize < len(data) else len(data) - j
             )
             batch = data[j : j + actualBatchSize]
-            placeCells.tuneCells(
-                torch.tensor(batch).to(torch.float).to(getTorchDevice())
-            )
+            placeCells.learn(torch.tensor(batch).to(torch.float).to(getTorchDevice()))
 
         print(
-            f"{i} - Distance: {placeCells.getTotalDistance(torch.tensor(data).to(torch.float).to(getTorchDevice()))}"
+            f"{i} - Distance: {placeCells.getTotalDistance(torch.tensor(data).to(torch.float).to(getTorchDevice())) / len(data)}"
         )
 
     # activations = (
@@ -50,13 +48,25 @@ if __name__ == "__main__":
     #     index = int(input("Enter index of batch: "))
     #     print(np.round(activations[index], 2))
 
-    states = np.loadtxt("data/place_cell_training/states.tsv", delimiter="\t").tolist()
+    states = np.loadtxt("data/overfitting_testing/states.tsv", delimiter="\t").tolist()
+
+    closestCells = []
+    batchSize = 128
+    for i in range(0, len(states), batchSize):
+        batchEndIndex = i + batchSize if len(states) - i >= batchSize else len(states)
+        activations = (
+            placeCells.forward(torch.tensor(states[i:batchEndIndex]).to(torch.float))
+            .cpu()
+            .numpy()
+        )
+        for activation in activations:
+            closestCells.append(activation)
 
     encounteredStates = set()
     uniqueStates = []
 
     for state in states:
-        stateStr = str(state)
+        stateStr = str(np.sum(state))
         if stateStr not in encounteredStates:
             uniqueStates.append(state)
             encounteredStates.add(stateStr)
@@ -67,14 +77,35 @@ if __name__ == "__main__":
     stateDict = {}
     for i in range(len(overlayedStates)):
         stateId = str(uuid.uuid4())[:8]
-        currentLabels = ["normal", stateId]
+        currentLabels = ["normal", stateId, "", ""]
         if i < 256:
-            currentLabels = ["place", stateId]
+            stateId = str(i)
+            frequency = placeCells.learningFrequency[i].item()
+            if frequency == 0:
+                freqLabel = "zero"
+            elif frequency < 10:
+                freqLabel = "<10."
+            elif frequency < 50:
+                freqLabel = "<50."
+            elif frequency < 100:
+                freqLabel = "<100."
+            elif frequency < 500:
+                freqLabel = "<500."
+            elif frequency < 1000:
+                freqLabel = "<1000."
+            else:
+                freqLabel = ">1000."
+            currentLabels = ["place", stateId, freqLabel, "none"]
+        else:
+            currentLabels[3] = str(closestCells[i - 256])
         stateLabels.append(currentLabels)
         stateDict[stateId] = np.array(overlayedStates[i])
 
     saveGameData(
-        overlayedStates, stateLabels, "place_cell_result_cleaned", ["isPlace", "ID"]
+        overlayedStates,
+        stateLabels,
+        "overfitting_overlay",
+        ["isPlace", "ID", "freq", "closest"],
     )
 
     while True:
