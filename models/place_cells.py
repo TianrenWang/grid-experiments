@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from device import getTorchDevice
 
@@ -32,7 +33,12 @@ class PlaceCells(nn.Module):
 
     def forward(self, x):
         states = torch.reshape(x.to(getTorchDevice()), (-1, self.cellDim))
-        return torch.argmax(torch.matmul(states, self.placeCells.T), 1)
+        normalizedStates = F.normalize(states, p=2, dim=1)
+        normalizedPlaceCells = F.normalize(self.placeCells, p=2, dim=1)
+        cosineSimilarity = torch.matmul(normalizedStates, normalizedPlaceCells.T)
+        dists_squared = (1 - cosineSimilarity) ** 2
+        unnormalized_activations = -dists_squared / (2 * self.fieldSize**2)
+        return torch.nn.functional.softmax(unnormalized_activations, dim=1)
 
     def learn(self, states: torch.Tensor, useMean: bool = False, droprate: float = 0):
         states = torch.reshape(states.to(getTorchDevice()), (-1, self.cellDim))
