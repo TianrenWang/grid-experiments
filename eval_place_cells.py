@@ -9,6 +9,7 @@ from connect4 import ConnectFour
 
 def overlayCells(states: np.ndarray, placeCells: PlaceCells, dataName: str):
     closestCells = []
+    cellActivations = []
     batchSize = 128
     for i in range(0, len(states), batchSize):
         batchEndIndex = i + batchSize if len(states) - i >= batchSize else len(states)
@@ -18,7 +19,9 @@ def overlayCells(states: np.ndarray, placeCells: PlaceCells, dataName: str):
             .numpy()
         )
         for activation in activations:
-            closestCells.append(activation)
+            cellActivations.append(np.max(activation))
+        closestCells.append(np.argmax(activations, 1).tolist())
+    closestCells = [cell for cells in closestCells for cell in cells]
 
     encounteredStates = set()
     uniqueStates = []
@@ -35,7 +38,7 @@ def overlayCells(states: np.ndarray, placeCells: PlaceCells, dataName: str):
     stateDict = {}
     for i in range(len(overlayedStates)):
         stateId = str(uuid.uuid4())[:8]
-        currentLabels = ["normal", stateId, "", ""]
+        currentLabels = ["normal", stateId, "", "", ""]
         if i < 256:
             stateId = str(i)
             frequency = placeCells.learningFrequency[i].item()
@@ -53,9 +56,10 @@ def overlayCells(states: np.ndarray, placeCells: PlaceCells, dataName: str):
                 freqLabel = "<1000."
             else:
                 freqLabel = ">1000."
-            currentLabels = ["place", stateId, freqLabel, "none"]
+            currentLabels = ["place", stateId, freqLabel, stateId, "none"]
         else:
             currentLabels[3] = str(closestCells[i - 256])
+            currentLabels[4] = str(cellActivations[i - 256])
         stateLabels.append(currentLabels)
         stateDict[stateId] = np.array(overlayedStates[i])
 
@@ -63,7 +67,7 @@ def overlayCells(states: np.ndarray, placeCells: PlaceCells, dataName: str):
         overlayedStates,
         stateLabels,
         f"{dataName}_overlay_cells",
-        ["isPlace", "ID", "frequency", "closest"],
+        ["isPlace", "ID", "frequency", "closest", "activation"],
     )
 
 
@@ -72,7 +76,7 @@ if __name__ == "__main__":
     expName = "b82fc76d85_cosine_activation"
     dataName = "b82fc76d85_cosine_activation"
     game = ConnectFour()
-    model = PlaceCellResNet(game, 9, 128, 256, 5376, 100, 0.0001, getTorchDevice())
+    model = PlaceCellResNet(game, 9, 128, 256, 5376, 0.15, 0.0001, getTorchDevice())
     agent = Agent(expName, version, model)
     states = np.loadtxt(f"data/{dataName}/states.tsv", delimiter="\t")
     placeCells = model.placeCells
