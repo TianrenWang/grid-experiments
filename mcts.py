@@ -25,26 +25,26 @@ class Node:
     def is_fully_expanded(self):
         return len(self.children) > 0
 
-    def select(self):
+    def select(self, exploration: int = 0):
         best_child = None
         best_ucb = -np.inf
 
         for child in self.children:
-            ucb = self.get_ucb(child)
+            ucb = self.get_ucb(child, exploration)
             if ucb > best_ucb:
                 best_child = child
                 best_ucb = ucb
 
         return best_child
 
-    def get_ucb(self, child):
+    def get_ucb(self, child, exploration: int = 0):
         if child.visit_count == 0:
             q_value = 0
         else:
             q_value = 1 - ((child.value_sum / child.visit_count) + 1) / 2
         return (
             q_value
-            + self.args["C"]
+            + exploration
             * (math.sqrt(self.visit_count) / (child.visit_count + 1))
             * child.prior
         )
@@ -168,7 +168,7 @@ class MCTSParallel:
                 node = spg.root
 
                 while node.is_fully_expanded():
-                    node = node.select()
+                    node = node.select(spg.exploration)
 
                 value, is_terminal = self.game.get_value_and_terminated(
                     node.state, node.action_taken
