@@ -66,7 +66,8 @@ def testAgentVSAgent(
     losses = 0
     numberOfGames = 0
 
-    states = []
+    gamePositions = dict()
+    latentStates = []
     stateLabels = []
     encounteredStates = set()
     actionConfidence = []
@@ -92,7 +93,7 @@ def testAgentVSAgent(
                 action = getFinalizedAction(mcts_probs, temperature)
                 currentGameConfidence.append(mcts_probs[action])
                 latentStatesOfCurrentGame.append(latentState)
-                boardStatesOfCurrentGame.append(state)
+                boardStatesOfCurrentGame.append(neutral_state)
                 playFirst.append(playFirstCurrentGame)
                 if str(state) in encounteredStates:
                     encountered.append(True)
@@ -117,8 +118,10 @@ def testAgentVSAgent(
                 for i in range(len(latentStatesOfCurrentGame)):
                     if encountered[i] and removeDuplicates:
                         continue
+                    positionId = str(uuid.uuid4())[:8]
                     latentState = latentStatesOfCurrentGame[i]
-                    states.append(latentState.cpu().numpy().flatten().tolist())
+                    latentStates.append(latentState.cpu().numpy().flatten().tolist())
+                    gamePositions[positionId] = boardStatesOfCurrentGame[i]
                     if value == 1:
                         if collectorPlayer == player:
                             outcome = "win"
@@ -137,6 +140,7 @@ def testAgentVSAgent(
                             temperature,
                             outcome,
                             playFirst[i],
+                            positionId,
                         ]
                     )
                 break
@@ -160,14 +164,22 @@ def testAgentVSAgent(
         totalConfidence += totalGameConfidence / len(actionConfidence[0])
     print(f"Average Confidence: {totalConfidence / len(actionConfidence)}")
 
-    return states, stateLabels
+    return gamePositions, latentStates, stateLabels
 
 
 def saveGameData(
     states,
     stateLabels,
     dataName: str,
-    columnNames=["move", "progress", "ID", "randomness", "outcome", "first"],
+    columnNames=[
+        "move",
+        "progress",
+        "game ID",
+        "randomness",
+        "outcome",
+        "first",
+        "position ID",
+    ],
 ):
     folder_path = "data/" + dataName
     if os.path.exists(folder_path):
@@ -196,8 +208,31 @@ def saveGameData(
 if __name__ == "__main__":
     # model = ResNet(game, 9, 128, getTorchDevice())
     model = PlaceCellResNet(game, 9, 128, 256, 5376, 100, 0.01, getTorchDevice())
-    agent = Agent("control", 13, model)
-    states, stateLabels = testAgentVSAgent(
-        agent, numberOfGamesToPlay=400, removeDuplicates=True
+    agent = Agent("b82fc76d85_cosine_activation", 14, model)
+    gamePositions, latentStates, stateLabels = testAgentVSAgent(
+        agent, agent, numberOfGamesToPlay=400, removeDuplicates=True
     )
-    saveGameData(states, stateLabels, "experiment")
+    saveGameData(latentStates, stateLabels, "b82fc76d85_cosine_activation")
+
+    visualizePositions = False
+    while visualizePositions:
+        found = False
+        while not found:
+            id = input("Enter ID of position: ")
+            if id not in gamePositions:
+                print("ID not found. Enter another one.")
+                continue
+            found = True
+        position = gamePositions[id]
+
+        symbols = {
+            -1: "O",  # Opponent
+            0: ".",  # Empty
+            1: "X",  # Current player
+        }
+
+        # Print the board
+        print(" +---------------+")
+        for row in position:
+            print(" | " + " ".join(symbols[val] for val in row) + " |")
+        print(" +---------------+")
