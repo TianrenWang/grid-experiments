@@ -153,11 +153,11 @@ def testAgentVSAgent(
     )
 
     totalConfidence = 0
-    for game in actionConfidence:
+    for moveConfidences in actionConfidence:
         totalGameConfidence = 0
-        for i in range(len(actionConfidence[0])):
-            totalGameConfidence += actionConfidence[0][i]
-        totalConfidence += totalGameConfidence / len(actionConfidence[0])
+        for i in range(len(moveConfidences)):
+            totalGameConfidence += moveConfidences[i]
+        totalConfidence += totalGameConfidence / len(moveConfidences)
     print(f"Average Confidence: {totalConfidence / len(actionConfidence)}")
 
     return states, stateLabels
