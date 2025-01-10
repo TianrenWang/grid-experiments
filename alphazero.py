@@ -34,7 +34,10 @@ class AlphaZeroParallel:
         """
         return_memory = []
         player = 1
-        spGames = [SPG(self.game) for spg in range(self.args["num_parallel_games"])]
+        spGames = [
+            SPG(self.game, self.args["C"])
+            for spg in range(self.args["num_parallel_games"])
+        ]
 
         while len(spGames) > 0:
             states = np.stack([spg.state for spg in spGames])
@@ -297,8 +300,9 @@ class AlphaZeroParallel:
 
 
 class SPG:
-    def __init__(self, game):
+    def __init__(self, game, exploration):
         self.state = game.get_initial_state()
         self.memory = []
         self.root = None
         self.node = None
+        self.exploration = random.uniform(0, exploration)
