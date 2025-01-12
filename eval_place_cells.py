@@ -80,7 +80,8 @@ if __name__ == "__main__":
     agent = Agent(expName, version, model)
     states = np.loadtxt(f"data/{dataName}/states.tsv", delimiter="\t")
     placeCells = model.placeCells
-    print(
-        f"Starting distance: {placeCells.getTotalDistance(torch.tensor(states).to(torch.float).to(getTorchDevice()))/len(states)}"
-    )
+    averageDistance = placeCells.getTotalDistance(
+        torch.tensor(states).to(torch.float).to(getTorchDevice())
+    ) / len(states)
+    print(f"Average distance: {averageDistance}")
     overlayCells(states, placeCells, dataName)
