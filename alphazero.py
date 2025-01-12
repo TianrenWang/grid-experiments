@@ -210,7 +210,7 @@ class AlphaZeroParallel:
         endPoint = startPoint + self.args["num_iterations"]
         for iteration in range(startPoint, endPoint):
             print(datetime.now())
-            print(f"CURRENT ITERATION OUT OF {self.args['num_iterations']}:", iteration)
+            print(f"CURRENT ITERATION OUT OF {endPoint}:", iteration)
             memory = None
             if memoryVersion := self.args["memory"]:
                 with open(
