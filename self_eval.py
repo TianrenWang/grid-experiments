@@ -20,6 +20,12 @@ class Agent:
         version: int,
         model: torch.nn.Module,
         loadModel: bool = True,
+        args: dict = {
+            "C": 2,
+            "num_searches": 0,
+            "dirichlet_epsilon": 0,
+            "dirichlet_alpha": 0.3,
+        },
     ):
         self.expName = expName
         self.version = version
@@ -35,12 +41,7 @@ class Agent:
                     )
                 )
         self.model.eval()
-        self.args = {
-            "C": 2,
-            "num_searches": 0,
-            "dirichlet_epsilon": 0,
-            "dirichlet_alpha": 0.3,
-        }
+        self.args = args
         self.mcts = MCTS(game, self.args, self.model)
 
 

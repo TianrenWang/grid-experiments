@@ -99,7 +99,7 @@ class MCTS:
             node = root
 
             while node.is_fully_expanded():
-                node = node.select()
+                node = node.select(self.args["C"])
 
             value, is_terminal = self.game.get_value_and_terminated(
                 node.state, node.action_taken
