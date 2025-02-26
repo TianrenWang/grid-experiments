@@ -44,7 +44,7 @@ class PathIntegrator(ResNet):
             nn.Linear(3 * game.row_count * game.column_count + memorySize, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
-            FCBlock(256),
+            *nn.ModuleList([FCBlock(256) for i in range(3)]),
             nn.Linear(256, 1),
             nn.Tanh(),
         )
@@ -60,7 +60,7 @@ class PathIntegrator(ResNet):
             nn.Linear(32 * game.row_count * game.column_count + memorySize, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
-            FCBlock(256),
+            *nn.ModuleList([FCBlock(256) for i in range(3)]),
             nn.Linear(256, game.action_size),
         )
 
