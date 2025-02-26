@@ -8,12 +8,13 @@ import pickle
 
 from mcts import MCTSParallel
 from self_eval import testAgentVSAgent, Agent
-from models import PlaceCellResNet
+from models import PlaceCellResNet, PathIntegrator
 from eval_place_cells import overlayCells  # noqa: F401
+from connect4 import ConnectFour
 
 
 class AlphaZeroParallel:
-    def __init__(self, model, optimizer, game, args):
+    def __init__(self, model, optimizer, game: ConnectFour, args):
         self.model = model
         self.optimizer = optimizer
         self.game = game
@@ -53,8 +54,6 @@ class AlphaZeroParallel:
                     action_probs[child.action_taken] = child.visit_count
                 action_probs /= np.sum(action_probs)
 
-                spg.memory.append((spg.root.state, action_probs, player))
-
                 temperature_action_probs = action_probs ** (
                     1 / self.args["temperature"]
                 )
@@ -62,6 +61,7 @@ class AlphaZeroParallel:
                 action = np.random.choice(
                     self.game.action_size, p=temperature_action_probs
                 )
+                spg.addMemory(spg.root.state, action_probs, player, action)
 
                 spg.state = self.game.get_next_state(spg.state, action, player)
 
@@ -70,11 +70,14 @@ class AlphaZeroParallel:
                 )
 
                 if is_terminal:
+                    hist_actions = [7]
                     for (
                         hist_neutral_state,
                         hist_action_probs,
                         hist_player,
+                        hist_action,
                     ) in spg.memory:
+                        hist_actions.append(hist_action)
                         hist_outcome = (
                             value
                             if hist_player == player
@@ -85,6 +88,7 @@ class AlphaZeroParallel:
                                 self.game.get_encoded_state(hist_neutral_state),
                                 hist_action_probs,
                                 hist_outcome,
+                                [action for action in hist_actions][:-1],
                             )
                         )
                     del spGames[i]
@@ -94,12 +98,20 @@ class AlphaZeroParallel:
         return return_memory
 
     def _expandSamples(self, samples):
-        state, policy_targets, value_targets = zip(*samples)
+        state, policy_targets, value_targets, actionSequences = zip(*samples)
 
         state, policy_targets, value_targets = (
             np.array(state),
             np.array(policy_targets),
             np.array(value_targets).reshape(-1, 1),
+        )
+        paddedSequences = torch.tensor(
+            np.array(
+                [
+                    np.pad(sequence, (0, 42 - len(sequence)), constant_values=7)
+                    for sequence in actionSequences
+                ]
+            )
         )
 
         state = torch.tensor(state, dtype=torch.float32, device=self.model.device)
@@ -109,7 +121,7 @@ class AlphaZeroParallel:
         value_targets = torch.tensor(
             value_targets, dtype=torch.float32, device=self.model.device
         )
-        return state, policy_targets, value_targets
+        return state, policy_targets, value_targets, paddedSequences
 
     def train(self, memory):
         self.model.train()
@@ -123,15 +135,23 @@ class AlphaZeroParallel:
                     len(trainingMemory) - 1, batchIdx + self.args["batch_size"]
                 )
             ]
-            state, policy_targets, value_targets = self._expandSamples(samples)
+            state, policy_targets, value_targets, actionSequences = self._expandSamples(
+                samples
+            )
             loss = 0
-            modelOutput = self.model(state)
-            if isinstance(self.model, PlaceCellResNet):
-                out_policy, out_value, out_place, out_latent = modelOutput
-                place_targets = self.model.placeCells(out_latent)
-                loss += F.cross_entropy(out_place, place_targets)
+            if isinstance(self.model, PathIntegrator):
+                out_policy, out_value, out_latent, out_integration = self.model(
+                    state, actionSequences
+                )
+                loss += F.mse_loss(out_integration, out_latent)
             else:
-                out_policy, out_value, out_latent = modelOutput
+                modelOutput = self.model(state)
+                if isinstance(self.model, PlaceCellResNet):
+                    out_policy, out_value, out_place, out_latent = modelOutput
+                    place_targets = self.model.placeCells(out_latent)
+                    loss += F.cross_entropy(out_place, place_targets)
+                else:
+                    out_policy, out_value, out_latent = modelOutput
 
             policy_loss = F.cross_entropy(out_policy, policy_targets)
             value_loss = F.mse_loss(out_value, value_targets)
@@ -144,7 +164,9 @@ class AlphaZeroParallel:
         if isinstance(self.model, PlaceCellResNet):
             self.model.eval()
             print("Evaluating Loss")
-            state, policy_targets, value_targets = self._expandSamples(evalMemory)
+            state, policy_targets, value_targets, actionSequences = self._expandSamples(
+                evalMemory
+            )
             with torch.no_grad():
                 out_policy, out_value, out_place, out_latent = self.model(state)
                 place_targets = self.model.placeCells(out_latent)
@@ -303,6 +325,11 @@ class SPG:
     def __init__(self, game, exploration):
         self.state = game.get_initial_state()
         self.memory = []
+        self.moves = [7]
         self.root = None
         self.node = None
         self.exploration = random.uniform(0, exploration)
+
+    def addMemory(self, state, action_probs, player, action):
+        self.memory.append((state, action_probs, player, action))
+        self.moves.append(action)
