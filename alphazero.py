@@ -161,33 +161,44 @@ class AlphaZeroParallel:
             loss.backward()
             self.optimizer.step()
 
-        if isinstance(self.model, PlaceCellResNet):
-            self.model.eval()
-            print("Evaluating Loss")
-            state, policy_targets, value_targets, actionSequences = self._expandSamples(
-                evalMemory
-            )
-            with torch.no_grad():
-                out_policy, out_value, out_place, out_latent = self.model(state)
-                place_targets = self.model.placeCells(out_latent)
+        self.model.eval()
+        print("Evaluating Loss")
+        state, policy_targets, value_targets, actionSequences = self._expandSamples(
+            evalMemory
+        )
+        with torch.no_grad():
+            if isinstance(self.model, PathIntegrator):
+                out_policy, out_value, out_latent, out_integration = self.model(
+                    state, actionSequences
+                )
+                reconstructionLoss = F.mse_loss(out_integration, out_latent)
+                print(f"Reconstruction Loss: {reconstructionLoss.item()}")
+            else:
+                modelOutput = self.model(state)
+                if isinstance(self.model, PlaceCellResNet):
+                    out_policy, out_value, out_place, out_latent = modelOutput
+                    place_targets = self.model.placeCells(out_latent)
+                    place_loss = F.cross_entropy(out_place, place_targets)
+                    print(f"Place Loss: {place_loss.item()}")
+                    print(
+                        f"Average Place Activation: {torch.mean(torch.max(torch.nn.functional.softmax(out_place, 1), 1)[0]).item()}"
+                    )
+                    # print("Saving latent states and place cell positions....")
+                    # states = (
+                    #     torch.reshape(out_latent, [-1, self.model.placeCells.cellDim])
+                    #     .cpu()
+                    #     .numpy()
+                    # )
+                    # expName = self.args["exp_name"]
+                    # prevVersion = self.args["prev_version"]
+                    # overlayCells(states, self.model.placeCells, f"{expName}_{prevVersion}")
+                else:
+                    out_policy, out_value, out_latent = modelOutput
             policy_loss = F.cross_entropy(out_policy, policy_targets)
             value_loss = F.mse_loss(out_value, value_targets)
-            place_loss = F.cross_entropy(out_place, place_targets)
+
             print(f"Policy Loss: {policy_loss.item()}")
             print(f"Value Loss: {value_loss.item()}")
-            print(f"Place Loss: {place_loss.item()}")
-            print(
-                f"Average Place Activation: {torch.mean(torch.max(torch.nn.functional.softmax(out_place, 1), 1)[0]).item()}"
-            )
-            # print("Saving latent states and place cell positions....")
-            # states = (
-            #     torch.reshape(out_latent, [-1, self.model.placeCells.cellDim])
-            #     .cpu()
-            #     .numpy()
-            # )
-            # expName = self.args["exp_name"]
-            # prevVersion = self.args["prev_version"]
-            # overlayCells(states, self.model.placeCells, f"{expName}_{prevVersion}")
 
     def _getLatents(self, memory):
         if not isinstance(self.model, PlaceCellResNet):
