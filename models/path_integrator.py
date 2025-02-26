@@ -84,11 +84,14 @@ class PathIntegrator(ResNet):
             integratedOutputs[torch.arange(integratedOutputs.shape[0]), integratedMasks]
         )
 
+        with torch.no_grad():
+            noGradProjection = torch.Tensor(spatialProjection)
+
         policy = self.policyHead(
-            torch.concat([self.prePolicyHead(boardStates), spatialProjection], 1)
+            torch.concat([self.prePolicyHead(boardStates), noGradProjection], 1)
         )
         value = self.valueHead(
-            torch.concat([self.preValueHead(boardStates), spatialProjection], 1)
+            torch.concat([self.preValueHead(boardStates), noGradProjection], 1)
         )
         integratedStates = self.integratorHead(spatialProjection)
         return (
