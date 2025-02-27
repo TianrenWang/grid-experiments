@@ -97,6 +97,6 @@ class PathIntegrator(ResNet):
         return (
             policy,
             value,
-            torch.reshape(boardStates, integratedStates.shape),
+            boardStates,
             integratedStates,
         )

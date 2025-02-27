@@ -143,6 +143,8 @@ class AlphaZeroParallel:
                 out_policy, out_value, out_latent, out_integration = self.model(
                     state, actionSequences
                 )
+                with torch.no_grad():
+                    out_latent = torch.reshape(out_latent, out_integration.shape)
                 loss += F.mse_loss(out_integration, out_latent)
             else:
                 modelOutput = self.model(state)
