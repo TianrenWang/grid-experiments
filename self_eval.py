@@ -53,7 +53,7 @@ def getFinalizedAction(probs: np.ndarray, temperature: float):
 
 def testAgentVSAgent(
     agent1: Agent,
-    agent2: Agent = Agent("control", 13, ResNet(game, 9, 128, getTorchDevice())),
+    agent2: Agent = Agent("control", 0, ResNet(game, 9, 128, getTorchDevice())),
     temperature: float = 1,
     numberOfGamesToPlay: int = 25,
     removeDuplicates: bool = False,
