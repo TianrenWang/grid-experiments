@@ -83,7 +83,7 @@ class MCTS:
         self.model = model
 
     @torch.no_grad()
-    def search(self, state):
+    def search(self, state, actionsTaken: list[int]):
         root = Node(self.game, self.args, state, visit_count=1)
         stateTensor = torch.tensor(
             self.game.get_encoded_state(state), device=self.model.device
@@ -91,7 +91,7 @@ class MCTS:
         if isinstance(self.model, PathIntegrator):
             modelOutput = self.model(
                 stateTensor,
-                torch.tensor([root.movesTaken], dtype=torch.int64),
+                torch.tensor([actionsTaken], dtype=torch.int64),
             )
         else:
             modelOutput = self.model(stateTensor)
@@ -124,7 +124,9 @@ class MCTS:
                 if isinstance(self.model, PathIntegrator):
                     modelOutput = self.model(
                         stateTensor,
-                        torch.tensor([node.movesTaken], dtype=torch.int64),
+                        torch.tensor(
+                            [actionsTaken + node.movesTaken[1:]], dtype=torch.int64
+                        ),
                     )
                 else:
                     modelOutput = self.model(stateTensor)
