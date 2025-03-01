@@ -173,6 +173,7 @@ class AlphaZeroParallel:
                 out_policy, out_value, out_latent, out_integration = self.model(
                     state, actionSequences
                 )
+                out_latent = torch.reshape(out_latent, out_integration.shape)
                 reconstructionLoss = F.mse_loss(out_integration, out_latent)
                 print(f"Reconstruction Loss: {reconstructionLoss.item()}")
             else:

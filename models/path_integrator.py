@@ -44,7 +44,6 @@ class PathIntegrator(ResNet):
             nn.Linear(3 * game.row_count * game.column_count + memorySize, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
-            *nn.ModuleList([FCBlock(256) for i in range(3)]),
             nn.Linear(256, 1),
             nn.Tanh(),
         )
@@ -60,7 +59,6 @@ class PathIntegrator(ResNet):
             nn.Linear(32 * game.row_count * game.column_count + memorySize, 256),
             nn.BatchNorm1d(256),
             nn.ReLU(),
-            *nn.ModuleList([FCBlock(256) for i in range(3)]),
             nn.Linear(256, game.action_size),
         )
 
@@ -93,10 +91,4 @@ class PathIntegrator(ResNet):
         value = self.valueHead(
             torch.concat([self.preValueHead(boardStates), noGradProjection], 1)
         )
-        integratedStates = self.integratorHead(spatialProjection)
-        return (
-            policy,
-            value,
-            boardStates,
-            integratedStates,
-        )
+        return policy, value, boardStates, self.integratorHead(spatialProjection)
