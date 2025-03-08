@@ -248,7 +248,7 @@ class AlphaZeroParallel:
             print(datetime.now())
             print(f"CURRENT ITERATION OUT OF {endPoint}:", iteration)
             memory = None
-            if memoryVersion := self.args["memory"]:
+            if (memoryVersion := self.args["memory"]) is not None:
                 with open(
                     f"results/{experimentName}/version_{memoryVersion}/memory.pkl",
                     "rb",
