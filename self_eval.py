@@ -53,7 +53,7 @@ def getFinalizedAction(probs: np.ndarray, temperature: float):
 
 def testAgentVSAgent(
     agent1: Agent,
-    agent2: Agent = Agent("control", 13, ResNet(game, 9, 128, getTorchDevice())),
+    agent2: Agent = Agent("control", 0, ResNet(game, 9, 128, getTorchDevice())),
     temperature: float = 1,
     numberOfGamesToPlay: int = 25,
     removeDuplicates: bool = False,
@@ -87,11 +87,15 @@ def testAgentVSAgent(
         else:
             player = -1
         playFirstCurrentGame = collectorPlayer == player
+        actionsTaken = [7]
         while True:
             if player == collectorPlayer:
                 neutral_state = game.change_perspective(state, player)
-                mcts_probs, latentState = agent1.mcts.search(neutral_state)
+                mcts_probs, latentState = agent1.mcts.search(
+                    neutral_state, actionsTaken
+                )
                 action = getFinalizedAction(mcts_probs, temperature)
+                actionsTaken.append(action)
                 currentGameConfidence.append(mcts_probs[action])
                 latentStatesOfCurrentGame.append(latentState)
                 boardStatesOfCurrentGame.append(neutral_state)
@@ -103,8 +107,11 @@ def testAgentVSAgent(
                     encounteredStates.add(str(state))
             else:
                 neutral_state = game.change_perspective(state, player)
-                mcts_probs, latentState = agent2.mcts.search(neutral_state)
+                mcts_probs, latentState = agent2.mcts.search(
+                    neutral_state, actionsTaken
+                )
                 action = getFinalizedAction(mcts_probs, temperature)
+                actionsTaken.append(action)
 
             state = game.get_next_state(state, action, player)
 

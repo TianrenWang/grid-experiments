@@ -3,6 +3,8 @@ import math
 
 import numpy as np
 
+from models import PathIntegrator
+
 print(np.__version__)
 
 
@@ -21,6 +23,10 @@ class Node:
 
         self.visit_count = visit_count
         self.value_sum = 0
+        if parent:
+            self.movesTaken = parent.movesTaken + [action_taken]
+        else:
+            self.movesTaken = [7]
 
     def is_fully_expanded(self):
         return len(self.children) > 0
@@ -77,14 +83,18 @@ class MCTS:
         self.model = model
 
     @torch.no_grad()
-    def search(self, state):
+    def search(self, state, actionsTaken: list[int]):
         root = Node(self.game, self.args, state, visit_count=1)
-
-        modelOutput = self.model(
-            torch.tensor(
-                self.game.get_encoded_state(state), device=self.model.device
-            ).unsqueeze(0)
-        )
+        stateTensor = torch.tensor(
+            self.game.get_encoded_state(state), device=self.model.device
+        ).unsqueeze(0)
+        if isinstance(self.model, PathIntegrator):
+            modelOutput = self.model(
+                stateTensor,
+                torch.tensor([actionsTaken], dtype=torch.int64),
+            )
+        else:
+            modelOutput = self.model(stateTensor)
         policy = torch.softmax(modelOutput[0], axis=1).squeeze(0).cpu().numpy()
         policy = (1 - self.args["dirichlet_epsilon"]) * policy + self.args[
             "dirichlet_epsilon"
@@ -107,13 +117,19 @@ class MCTS:
             value = self.game.get_opponent_value(value)
 
             if not is_terminal:
-                modelOutput = self.model(
-                    torch.tensor(
-                        self.game.get_encoded_state(node.state),
-                        device=self.model.device,
-                    ).unsqueeze(0)
-                )
-
+                stateTensor = torch.tensor(
+                    self.game.get_encoded_state(node.state),
+                    device=self.model.device,
+                ).unsqueeze(0)
+                if isinstance(self.model, PathIntegrator):
+                    modelOutput = self.model(
+                        stateTensor,
+                        torch.tensor(
+                            [actionsTaken + node.movesTaken[1:]], dtype=torch.int64
+                        ),
+                    )
+                else:
+                    modelOutput = self.model(stateTensor)
                 policy = torch.softmax(modelOutput[0], axis=1).squeeze(0).cpu().numpy()
                 valid_moves = self.game.get_valid_moves(node.state)
                 policy *= valid_moves
@@ -143,9 +159,14 @@ class MCTSParallel:
 
     @torch.no_grad()
     def search(self, states, spGames):
-        modelOutput = self.model(
-            torch.tensor(self.game.get_encoded_state(states), device=self.model.device)
+        pastMoves = torch.tensor(np.array([spGame.moves for spGame in spGames]))
+        statesTensor = torch.tensor(
+            self.game.get_encoded_state(states), device=self.model.device
         )
+        if isinstance(self.model, PathIntegrator):
+            modelOutput = self.model(statesTensor, pastMoves)
+        else:
+            modelOutput = self.model(statesTensor)
         policy = torch.softmax(modelOutput[0], axis=1).cpu().numpy()
         policy = (1 - self.args["dirichlet_epsilon"]) * policy + self.args[
             "dirichlet_epsilon"
@@ -160,6 +181,7 @@ class MCTSParallel:
             spg_policy /= np.sum(spg_policy)
 
             spg.root = Node(self.game, self.args, states[i], visit_count=1)
+            spg.root.movesTaken = spg.moves
             spg.root.expand(spg_policy)
 
         for search in range(self.args["num_searches"]):
@@ -195,11 +217,27 @@ class MCTSParallel:
                     ]
                 )
 
-                modelOutput = self.model(
-                    torch.tensor(
-                        self.game.get_encoded_state(states), device=self.model.device
+                statesTensor = torch.tensor(
+                    self.game.get_encoded_state(states), device=self.model.device
+                )
+
+                pastMoves = torch.tensor(
+                    np.array(
+                        [
+                            np.pad(
+                                spGames[mappingIdx].node.movesTaken,
+                                (0, 42 - len(spGames[mappingIdx].node.movesTaken)),
+                                constant_values=7,
+                            )
+                            for mappingIdx in expandable_spGames
+                        ]
                     )
                 )
+
+                if isinstance(self.model, PathIntegrator):
+                    modelOutput = self.model(statesTensor, pastMoves)
+                else:
+                    modelOutput = self.model(statesTensor)
                 policy = torch.softmax(modelOutput[0], axis=1).cpu().numpy()
                 value = modelOutput[1].cpu().numpy()
 
