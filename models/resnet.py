@@ -48,6 +48,51 @@ class ResNet(nn.Module):
         return policy, value, x
 
 
+class SmootherResNet(ResNet):
+    def __init__(self, game, num_resBlocks, num_hidden, device):
+        super().__init__(game, num_resBlocks, num_hidden, device)
+
+        self.smoother = nn.Sequential(
+            nn.Conv2d(num_hidden, 32, kernel_size=3, padding=1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.Conv2d(32, 8, kernel_size=3, padding=1),
+            nn.BatchNorm2d(8),
+            nn.ReLU(),
+            nn.Conv2d(8, 3, kernel_size=3, padding=1),
+            nn.BatchNorm2d(3),
+            nn.ReLU(),
+        )
+
+        self.policyHead = nn.Sequential(
+            nn.Conv2d(3, 3, kernel_size=3, padding=1),
+            nn.BatchNorm2d(3),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(3 * game.row_count * game.column_count, game.action_size),
+        )
+
+        self.valueHead = nn.Sequential(
+            nn.Conv2d(3, 3, kernel_size=3, padding=1),
+            nn.BatchNorm2d(3),
+            nn.ReLU(),
+            nn.Flatten(),
+            nn.Linear(3 * game.row_count * game.column_count, 1),
+            nn.Tanh(),
+        )
+
+        self.to(device)
+
+    def forward(self, x):
+        x = self.startBlock(x)
+        for resBlock in self.backBone:
+            x = resBlock(x)
+        x = self.smoother(x)
+        policy = self.policyHead(x)
+        value = self.valueHead(x)
+        return policy, value, x
+
+
 class ResBlock(nn.Module):
     def __init__(self, num_hidden):
         super().__init__()

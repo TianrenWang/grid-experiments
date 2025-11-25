@@ -2,7 +2,7 @@ import torch
 import os
 
 from connect4 import ConnectFour
-from models import ResNet, PlaceCellResNet, PathIntegrator  # noqa: F401
+from models import ResNet, PlaceCellResNet, PathIntegrator, SmootherResNet  # noqa: F401
 from alphazero import AlphaZeroParallel
 from device import getTorchDevice
 
