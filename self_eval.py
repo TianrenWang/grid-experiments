@@ -70,7 +70,7 @@ def testAgentVSAgent(
     gamePositions = dict()
     latentStates = []
     stateLabels = []
-    encounteredStates = set()
+    encounteredStates = dict()
     actionConfidence = []
 
     while numberOfGames < numberOfGamesToPlay:
@@ -104,7 +104,7 @@ def testAgentVSAgent(
                     encountered.append(True)
                 else:
                     encountered.append(False)
-                    encounteredStates.add(str(state))
+                    encounteredStates[str(state)] = latentState
             else:
                 neutral_state = game.change_perspective(state, player)
                 mcts_probs, latentState = agent2.mcts.search(
@@ -172,7 +172,7 @@ def testAgentVSAgent(
         totalConfidence += totalGameConfidence / len(moveConfidences)
     print(f"Average Confidence: {totalConfidence / len(actionConfidence)}")
 
-    return gamePositions, latentStates, stateLabels
+    return gamePositions, encounteredStates, latentStates, stateLabels
 
 
 def saveGameData(
@@ -217,7 +217,7 @@ if __name__ == "__main__":
     # model = ResNet(game, 9, 128, getTorchDevice())
     model = PlaceCellResNet(game, 9, 128, 256, 5376, 100, 0.01, getTorchDevice())
     agent = Agent("b82fc76d85_cosine_activation", 14, model)
-    gamePositions, latentStates, stateLabels = testAgentVSAgent(
+    gamePositions, rawBoardPositions, latentStates, stateLabels = testAgentVSAgent(
         agent, agent, numberOfGamesToPlay=400, removeDuplicates=True
     )
     saveGameData(latentStates, stateLabels, "b82fc76d85_cosine_activation")

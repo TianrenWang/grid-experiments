@@ -163,8 +163,8 @@ class AlphaZeroParallel:
             loss.backward()
             self.optimizer.step()
 
-        self.model.eval()
-        print("Evaluating Loss")
+        # self.model.eval()
+        # print("Evaluating Loss")
         state, policy_targets, value_targets, actionSequences = self._expandSamples(
             evalMemory
         )
@@ -197,11 +197,11 @@ class AlphaZeroParallel:
                     # overlayCells(states, self.model.placeCells, f"{expName}_{prevVersion}")
                 else:
                     out_policy, out_value, out_latent = modelOutput
-            policy_loss = F.cross_entropy(out_policy, policy_targets)
-            value_loss = F.mse_loss(out_value, value_targets)
+            # policy_loss = F.cross_entropy(out_policy, policy_targets)
+            # value_loss = F.mse_loss(out_value, value_targets)
 
-            print(f"Policy Loss: {policy_loss.item()}")
-            print(f"Value Loss: {value_loss.item()}")
+            # print(f"Policy Loss: {policy_loss.item()}")
+            # print(f"Value Loss: {value_loss.item()}")
 
     def _getLatents(self, memory):
         if not isinstance(self.model, PlaceCellResNet):
@@ -244,6 +244,10 @@ class AlphaZeroParallel:
         if "prev_version" in self.args and self.args["prev_version"]:
             startPoint = self.args["prev_version"] + 1
         endPoint = startPoint + self.args["num_iterations"]
+        _, rawBoardPositions, _, _ = testAgentVSAgent(
+            Agent(experimentName, 0, self.model, False), numberOfGamesToPlay=400
+        )
+
         for iteration in range(startPoint, endPoint):
             print(datetime.now())
             print(f"CURRENT ITERATION OUT OF {endPoint}:", iteration)
@@ -329,9 +333,18 @@ class AlphaZeroParallel:
             with open(folderPath + "/memory.pkl", "wb") as file:
                 pickle.dump(memory, file)
 
-            testAgentVSAgent(
+            _, newRawBoardPositions, _, _ = testAgentVSAgent(
                 Agent(experimentName, iteration, self.model), numberOfGamesToPlay=400
             )
+            totalDiff = 0
+            totalCompared = 0
+            for position, latent in rawBoardPositions.items():
+                if position in newRawBoardPositions:
+                    totalCompared += 1
+                    newLatent = newRawBoardPositions[position]
+                    totalDiff += torch.sum(torch.abs(newLatent - latent)).item()
+            print(f"Average state diff: {totalDiff / totalCompared}")
+            rawBoardPositions = newRawBoardPositions
             self.model.train()
 
 

@@ -10,11 +10,11 @@ if __name__ == "__main__":
     game = ConnectFour()
 
     previousVersion = None
-    experimentName = "path_integration"
+    experimentName = "test_latent_shift"
 
-    # model = ResNet(game, 9, 128, getTorchDevice())
+    model = ResNet(game, 9, 128, getTorchDevice())
     # model = PlaceCellResNet(game, 9, 128, 256, 5376, 0.15, 0.01, getTorchDevice())
-    model = PathIntegrator(game, 9, 128, getTorchDevice(), 256)
+    # model = PathIntegrator(game, 9, 128, getTorchDevice(), 256)
     optimizer = torch.optim.Adam(model.parameters(), lr=0.001, weight_decay=0.0001)
 
     args = {
